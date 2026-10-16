@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class AppItem {
   AppItem(this.name, this.colors, {this.blocked = false, this.system = false});
   final String name;

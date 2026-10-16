@@ -1,1311 +1,968 @@
-// Block Internet Access: complete Flutter app in ONE file (Material 3, dark/light).
-// Put this as lib/main.dart. Requires Flutter 3.22+ and the native Android code from main.yml.
-
+import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
-// ===== theme.dart =====
-/// Dark / light switch. Call [setDark] to change the whole app.
-final ValueNotifier<bool> themeNotifier = ValueNotifier<bool>(true);
+part 'p2.dart';
+part 'p3.dart';
+part 'p4.dart';
+part 'p5.dart';
 
-void setDark(bool value) {
-  AppColors.dark = value;
-  themeNotifier.value = value;
+// ───────────────────────── النصوص / Strings ─────────────────────────
+
+const Map<String, Map<String, String>> _tr = {
+  'ar': {
+    'app': 'جدولي',
+    'tagline': 'جدولك الجامعي وتذكيرات محاضراتك وواجباتك واختباراتك في مكان واحد',
+    'start': 'ابدأ الآن',
+    'skip': 'تخطي',
+    'next': 'التالي',
+    'back': 'رجوع',
+    'ob1t': 'أسبوعك الجامعي في مكان واحد',
+    'ob1d': 'أضف محاضراتك مرة واحدة ويتكرر جدولك كل أسبوع من السبت إلى الخميس.',
+    'ob2t': 'تنبيه لا يفوتك',
+    'ob2d': 'نغمة من هاتفك وتنبيه مستمر حتى تضغط إيقاف، حتى لا تفوتك محاضرة.',
+    'ob3t': 'واجباتك واختباراتك تحت السيطرة',
+    'ob3d': 'سجّل الواجبات والاختبارات ويذكّرك التطبيق قبل الموعد بالوقت الذي تختاره.',
+    'getStarted': 'هيا نبدأ',
+    'permT': 'اسمح بالتنبيهات',
+    'permD': 'لكي يعمل التذكير بدقة حتى والتطبيق مغلق نحتاج هذه الأذونات.',
+    'p1t': 'الإشعارات',
+    'p1d': 'لإرسال تذكيرات المحاضرات والواجبات',
+    'p2t': 'المنبّهات الدقيقة',
+    'p2d': 'لتشغيل التنبيه في الدقيقة المحددة',
+    'allow': 'السماح',
+    'allowed': 'مسموح',
+    'allowAll': 'السماح للكل',
+    'later': 'لاحقًا',
+    'home': 'الرئيسية',
+    'schedule': 'الجدول الأسبوعي',
+    'reminders': 'التذكيرات',
+    'settings': 'الإعدادات',
+    'greet': 'صباح الخير',
+    'todayTitle': 'الرئيسية',
+    'upcomingLec': 'محاضرات الأيام القادمة',
+    'breakT': 'استراحة',
+    'durT': 'المدة',
+    'daySummary': 'ملخص اليوم',
+    'lecturesN': 'محاضرات',
+    'nextLecture': 'المحاضرة القادمة',
+    'details': 'التفاصيل',
+    'alertOn': 'التنبيه مفعّل',
+    'alertOff': 'التنبيه متوقف',
+    'todayLec': 'محاضرات اليوم',
+    'viewWeek': 'عرض الأسبوع',
+    'lecCount': 'محاضرات اليوم',
+    'remCount': 'تذكيرات معلّقة',
+    'stDone': 'انتهت',
+    'stNow': 'جارية',
+    'stUp': 'قادمة',
+    'allDone': 'أنهيت محاضرات اليوم',
+    'allDoneD': 'استمتع ببقية يومك.',
+    'noToday': 'لا محاضرات اليوم',
+    'nextDue': 'أقرب موعد تسليم',
+    'hall': 'قاعة',
+    'emptyT': 'لا يوجد شيء هنا بعد',
+    'emptyD': 'أضف أول محاضرة وسيذكّرك جدولي بها كل أسبوع.',
+    'addFirst': 'إضافة أول محاضرة',
+    'weekTitle': 'الجدول الأسبوعي',
+    'addOnDay': 'إضافة محاضرة يوم',
+    'noDay': 'لا محاضرات في هذا اليوم',
+    'nowLbl': 'الآن',
+    'remTitle': 'التذكيرات',
+    'upcoming': 'القادمة',
+    'completed': 'المكتملة',
+    'fAll': 'الكل',
+    'fAssign': 'الواجبات',
+    'fExam': 'الاختبارات',
+    'dueToday': 'يستحق اليوم',
+    'noRem': 'لا توجد تذكيرات',
+    'noRemD': 'ستظهر هنا الواجبات والاختبارات التي تضيفها.',
+    'noneDone': 'لم تُكمل أي تذكير بعد',
+    'markDone': 'تحديد كمكتمل',
+    'markUndone': 'إعادة فتح التذكير',
+    'today': 'اليوم',
+    'tomorrow': 'غداً',
+    'newT': 'إضافة جديدة',
+    'editLecT': 'تعديل المحاضرة',
+    'editRemT': 'تعديل التذكير',
+    'lecture': 'محاضرة',
+    'assignment': 'واجب',
+    'exam': 'اختبار',
+    'final': 'امتحان',
+    'fFinal': 'الامتحانات',
+    'title': 'العنوان',
+    'titleHint': 'مثال: تسليم التقرير',
+    'subject': 'المادة',
+    'pickSubject': 'اختر المادة',
+    'addSubject': 'إضافة مادة جديدة',
+    'room': 'القاعة',
+    'roomHint': 'مثال: A12',
+    'day': 'اليوم',
+    'date': 'التاريخ',
+    'time': 'الوقت',
+    'startTime': 'البداية',
+    'endTime': 'النهاية',
+    'endAfter': 'وقت النهاية يجب أن يكون بعد البداية',
+    'remindBefore': 'التذكير قبل',
+    'soundRow': 'نغمة التنبيه',
+    'save': 'حفظ',
+    'saved': 'تم الحفظ',
+    'deleted': 'تم الحذف',
+    'required': 'مطلوب',
+    'needTitle': 'اكتب عنوانًا أولًا',
+    'delete': 'حذف',
+    'edit': 'تعديل',
+    'cancel': 'إلغاء',
+    'keep': 'إبقاء',
+    'yesDelete': 'نعم، احذف',
+    'delLecQ': 'حذف هذه المحاضرة؟',
+    'delRemQ': 'حذف هذا التذكير؟',
+    'delD': 'لا يمكن التراجع عن هذا الإجراء.',
+    'openDetails': 'فتح التفاصيل',
+    'when': 'الموعد',
+    'repeat': 'التكرار',
+    'weekly': 'كل أسبوع',
+    'type': 'النوع',
+    'due': 'موعد التسليم',
+    'alertEnabled': 'التنبيه مفعّل',
+    'soundTitle': 'نغمة التنبيه',
+    'phoneDefault': 'نغمة الهاتف الافتراضية',
+    'phoneDefaultSub': 'تستخدم النغمة المحددة في إعدادات هاتفك',
+    'pickFromPhone': 'اختيار نغمة من الهاتف',
+    'pickFromPhoneSub': 'من نغمات جهازك',
+    'chooseTone': 'استعراض',
+    'continuous': 'تنبيه مستمر',
+    'continuousSub': 'يتكرر الرنين حتى تضغط إيقاف',
+    'repeatFor': 'مدة التكرار',
+    'untilStop': 'حتى الإيقاف',
+    'min1': 'دقيقة',
+    'min5': '5 دقائق',
+    'min10': '10 دقائق',
+    'vibrate': 'الاهتزاز',
+    'preview': 'تجربة التنبيه',
+    'appearance': 'المظهر',
+    'light': 'فاتح',
+    'dark': 'داكن',
+    'system': 'النظام',
+    'language': 'اللغة',
+    'timeFormat': 'نظام الوقت',
+    'h12': '12 ساعة',
+    'h24': '24 ساعة',
+    'alerts': 'التنبيهات',
+    'defBefore': 'التذكير الافتراضي قبل المحاضرة',
+    'data': 'البيانات',
+    'subjects': 'المواد الدراسية',
+    'clearAll': 'مسح كل البيانات',
+    'clearQ': 'مسح كل المحاضرات والتذكيرات؟',
+    'clearD': 'ستبقى المواد والإعدادات كما هي.',
+    'yesClear': 'نعم، امسح الكل',
+    'cleared': 'تم مسح البيانات',
+    'about': 'حول التطبيق',
+    'version': 'الإصدار 1.0',
+    'subjNew': 'اسم مادة جديدة',
+    'subjAdd': 'إضافة',
+    'subjUsed': 'لا يمكن حذف مادة لها محاضرات',
+    'lecN': 'محاضرة',
+    'alarmBadge': 'جدولي',
+    'alarmIn': 'تبدأ المحاضرة قريبًا',
+    'stop': 'إيقاف',
+    'snooze': 'غفوة 5 دقائق',
+    'previewBody': 'هذه معاينة لنغمة التنبيه',
+    'min': 'د',
+  },
+  'en': {
+    'app': 'Jadwali',
+    'tagline': 'Your university schedule, with reminders for lectures, assignments and exams in one place',
+    'start': 'Get started',
+    'skip': 'Skip',
+    'next': 'Next',
+    'back': 'Back',
+    'ob1t': 'Your whole week in one place',
+    'ob1d': 'Add your lectures once and your timetable repeats every week, Saturday to Thursday.',
+    'ob2t': 'Alerts you will not miss',
+    'ob2d': 'Pick a tone from your phone and let it ring until you press stop, so no lecture slips by.',
+    'ob3t': 'Assignments and exams under control',
+    'ob3d': 'Log assignments and exams and get reminded ahead of time, as early as you choose.',
+    'getStarted': "Let's go",
+    'permT': 'Allow alerts',
+    'permD': 'To remind you on time, even when the app is closed, Jadwali needs these permissions.',
+    'p1t': 'Notifications',
+    'p1d': 'To send lecture and assignment reminders',
+    'p2t': 'Exact alarms',
+    'p2d': 'To ring at the exact minute you set',
+    'allow': 'Allow',
+    'allowed': 'Allowed',
+    'allowAll': 'Allow all',
+    'later': 'Later',
+    'home': 'Home',
+    'schedule': 'Weekly schedule',
+    'reminders': 'Reminders',
+    'settings': 'Settings',
+    'greet': 'Good morning',
+    'todayTitle': 'Home',
+    'upcomingLec': 'Upcoming days',
+    'breakT': 'Break',
+    'durT': 'Duration',
+    'daySummary': 'Day summary',
+    'lecturesN': 'lectures',
+    'nextLecture': 'Next lecture',
+    'details': 'Details',
+    'alertOn': 'Alert on',
+    'alertOff': 'Alert off',
+    'todayLec': "Today's lectures",
+    'viewWeek': 'View week',
+    'lecCount': 'Lectures today',
+    'remCount': 'Pending reminders',
+    'stDone': 'Finished',
+    'stNow': 'Now',
+    'stUp': 'Upcoming',
+    'allDone': "You're done for today",
+    'allDoneD': 'Enjoy the rest of your day.',
+    'noToday': 'No lectures today',
+    'nextDue': 'Next due',
+    'hall': 'Hall',
+    'emptyT': 'Nothing here yet',
+    'emptyD': 'Add your first lecture and Jadwali will remind you every week.',
+    'addFirst': 'Add first lecture',
+    'weekTitle': 'Weekly schedule',
+    'addOnDay': 'Add lecture on',
+    'noDay': 'No lectures on this day',
+    'nowLbl': 'Now',
+    'remTitle': 'Reminders',
+    'upcoming': 'Upcoming',
+    'completed': 'Completed',
+    'fAll': 'All',
+    'fAssign': 'Assignments',
+    'fExam': 'Exams',
+    'dueToday': 'Due today',
+    'noRem': 'No reminders',
+    'noRemD': 'Assignments and exams you add will show up here.',
+    'noneDone': 'Nothing completed yet',
+    'markDone': 'Mark as done',
+    'markUndone': 'Reopen reminder',
+    'today': 'Today',
+    'tomorrow': 'Tomorrow',
+    'newT': 'New',
+    'editLecT': 'Edit lecture',
+    'editRemT': 'Edit reminder',
+    'lecture': 'Lecture',
+    'assignment': 'Assignment',
+    'exam': 'Quiz',
+    'final': 'Final exam',
+    'fFinal': 'Finals',
+    'title': 'Title',
+    'titleHint': 'e.g. Report due',
+    'subject': 'Subject',
+    'pickSubject': 'Choose subject',
+    'addSubject': 'Add new subject',
+    'room': 'Hall',
+    'roomHint': 'e.g. A12',
+    'day': 'Day',
+    'date': 'Date',
+    'time': 'Time',
+    'startTime': 'Starts',
+    'endTime': 'Ends',
+    'endAfter': 'End time must be after the start',
+    'remindBefore': 'Remind me before',
+    'soundRow': 'Alert sound',
+    'save': 'Save',
+    'saved': 'Saved',
+    'deleted': 'Deleted',
+    'required': 'Required',
+    'needTitle': 'Enter a title first',
+    'delete': 'Delete',
+    'edit': 'Edit',
+    'cancel': 'Cancel',
+    'keep': 'Keep',
+    'yesDelete': 'Yes, delete',
+    'delLecQ': 'Delete this lecture?',
+    'delRemQ': 'Delete this reminder?',
+    'delD': 'This cannot be undone.',
+    'openDetails': 'Open details',
+    'when': 'When',
+    'repeat': 'Repeats',
+    'weekly': 'Every week',
+    'type': 'Type',
+    'due': 'Due',
+    'alertEnabled': 'Alert enabled',
+    'soundTitle': 'Alert sound',
+    'phoneDefault': 'Phone default ringtone',
+    'phoneDefaultSub': 'Uses the ringtone set in your phone settings',
+    'pickFromPhone': 'Choose a tone from phone',
+    'pickFromPhoneSub': 'From your device tones',
+    'chooseTone': 'Browse',
+    'continuous': 'Continuous alert',
+    'continuousSub': 'Keeps ringing until you press stop',
+    'repeatFor': 'Repeat for',
+    'untilStop': 'Until stopped',
+    'min1': '1 min',
+    'min5': '5 min',
+    'min10': '10 min',
+    'vibrate': 'Vibration',
+    'preview': 'Test alert',
+    'appearance': 'Appearance',
+    'light': 'Light',
+    'dark': 'Dark',
+    'system': 'System',
+    'language': 'Language',
+    'timeFormat': 'Time format',
+    'h12': '12-hour',
+    'h24': '24-hour',
+    'alerts': 'Alerts',
+    'defBefore': 'Default reminder before lecture',
+    'data': 'Data',
+    'subjects': 'Subjects',
+    'clearAll': 'Clear all data',
+    'clearQ': 'Clear all lectures and reminders?',
+    'clearD': 'Subjects and settings stay as they are.',
+    'yesClear': 'Yes, clear all',
+    'cleared': 'Data cleared',
+    'about': 'About',
+    'version': 'Version 1.0',
+    'subjNew': 'New subject name',
+    'subjAdd': 'Add',
+    'subjUsed': 'Cannot delete a subject that has lectures',
+    'lecN': 'lectures',
+    'alarmBadge': 'Jadwali',
+    'alarmIn': 'Your lecture starts soon',
+    'stop': 'Stop',
+    'snooze': 'Snooze 5 min',
+    'previewBody': 'This is a preview of your alert sound',
+    'min': 'min',
+  },
+};
+
+const _daysAr = ['', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+const _daysEn = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _monthsAr = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const _monthsEn = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// أيام الأسبوع الدراسي: السبت إلى الخميس (DateTime.weekday: الإثنين=1 ... الأحد=7)
+const List<int> kWeekdays = [6, 7, 1, 2, 3, 4];
+
+const List<Color> kSubjectColors = [
+  Color(0xFF2F6BFF),
+  Color(0xFF17A673),
+  Color(0xFFF08A24),
+  Color(0xFF8B5CF6),
+  Color(0xFFE0457B),
+  Color(0xFF0EA5B7),
+  Color(0xFFC99A12),
+];
+
+// ───────────────────────── النماذج / Models ─────────────────────────
+
+class Subject {
+  Subject({required this.name, required this.color});
+  String name;
+  int color; // فهرس في kSubjectColors
+
+  Map<String, dynamic> toJson() => {'name': name, 'color': color};
+  factory Subject.fromJson(Map<String, dynamic> j) => Subject(name: j['name'] as String, color: (j['color'] ?? 0) as int);
 }
 
-class AppColors {
-  static bool dark = true;
-  static Color _p(int d, int l) => Color(dark ? d : l);
-
-  static Color get bg => _p(0xFF12161A, 0xFFF3F6F5);
-  static Color get card => _p(0xFF161A1B, 0xFFFFFFFF);
-  static Color get border => _p(0xFF242B2C, 0xFFDCE4E2);
-  static Color get muted => _p(0xFF8FA3A1, 0xFF5F7270);
-  static Color get accent => _p(0xFF8FBFB5, 0xFF3F7D72);
-  static Color get accent2 => _p(0xFFA6CFC6, 0xFF3F7D72);
-  static Color get onAccent => _p(0xFF10231F, 0xFFFFFFFF);
-  static Color get tonal => _p(0xFF212A2B, 0xFFE3EEEB);
-  static Color get chipText => _p(0xFFB6C4C2, 0xFF5F7270);
-  static Color get sub => _p(0xFF7F8E8C, 0xFF6B7C7A);
-  static Color get hint => _p(0xFF6F7F7D, 0xFF7F908E);
-  static Color get track => _p(0xFF232A2B, 0xFFE3EEEB);
-  static Color get navActive => _p(0xFF2F4A47, 0xFFD3E8E3);
-  static Color get navBg => _p(0xE01B2627, 0xF0FFFFFF);
-  static Color get navBorder => _p(0x17FFFFFF, 0xFFDCE4E2);
-  static Color get knobOff => _p(0xFF8A9796, 0xFF7F908E);
-  static Color get switchOff => _p(0xFF1B2021, 0xFFEEF3F2);
-  static Color get switchOutline => _p(0xFF5F6B6A, 0xFF8FA09E);
-  static Color get logoA => _p(0xFF26363A, 0xFFFFFFFF);
-  static Color get logoB => _p(0xFF182523, 0xFFE3EEEB);
-}
-
-ThemeData buildTheme(bool dark) => ThemeData(
-      useMaterial3: true,
-      brightness: dark ? Brightness.dark : Brightness.light,
-      scaffoldBackgroundColor: AppColors.bg,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.accent,
-        brightness: dark ? Brightness.dark : Brightness.light,
-        surface: AppColors.bg,
-      ),
-      // Add the Rubik font (google_fonts or assets) for the exact look.
-    );
-
-// ===== models/app_item.dart =====
-class AppItem {
-  AppItem({
-    required this.name,
-    required this.package,
-    this.icon,
-    this.system = false,
-    this.blocked = false,
+class Lecture {
+  Lecture({
+    required this.id,
+    required this.subject,
+    required this.weekday,
+    required this.start,
+    required this.end,
+    this.room = '',
+    this.before = 10,
+    this.on = true,
   });
 
-  final String name;
-  final String package;
-  final Uint8List? icon;
-  final bool system;
-  bool blocked;
+  int id;
+  String subject;
+  int weekday; // 1..7
+  int start; // دقائق من منتصف الليل
+  int end;
+  String room;
+  int before; // دقائق
+  bool on;
 
-  String get letter => name.isEmpty ? '?' : name[0].toUpperCase();
-}
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'subject': subject,
+        'weekday': weekday,
+        'start': start,
+        'end': end,
+        'room': room,
+        'before': before,
+        'on': on,
+      };
 
-// ===== services/block_service.dart =====
-/// State kept by the native side (SharedPreferences) and read at startup.
-class NativeState {
-  NativeState({
-    this.blocked = const <String>{},
-    this.master = true,
-    this.running = false,
-    this.schedOn = false,
-    this.start = 51,
-    this.end = 111,
-    this.days = 62,
-    this.dark = true,
-    this.boot = true,
-    this.showSystem = false,
-    this.timedUntil = 0,
-    this.vpnGranted = false,
-  });
-
-  final Set<String> blocked;
-  final bool master, running, schedOn, dark, boot, showSystem, vpnGranted;
-  final int start, end, days, timedUntil;
-
-  bool get timedActive => timedUntil > DateTime.now().millisecondsSinceEpoch;
-
-  factory NativeState.fromMap(Map m) => NativeState(
-        blocked: ((m['blocked'] as List?) ?? []).map((e) => e.toString()).toSet(),
-        master: m['master'] as bool? ?? true,
-        running: m['running'] as bool? ?? false,
-        schedOn: m['schedOn'] as bool? ?? false,
-        start: (m['start'] as num?)?.toInt() ?? 51,
-        end: (m['end'] as num?)?.toInt() ?? 111,
-        days: (m['days'] as num?)?.toInt() ?? 62,
-        dark: m['dark'] as bool? ?? true,
-        boot: m['boot'] as bool? ?? true,
-        showSystem: m['showSystem'] as bool? ?? false,
-        timedUntil: (m['timedUntil'] as num?)?.toInt() ?? 0,
-        vpnGranted: m['vpnGranted'] as bool? ?? false,
+  factory Lecture.fromJson(Map<String, dynamic> j) => Lecture(
+        id: j['id'] as int,
+        subject: j['subject'] as String,
+        weekday: j['weekday'] as int,
+        start: j['start'] as int,
+        end: j['end'] as int,
+        room: (j['room'] ?? '') as String,
+        before: (j['before'] ?? 10) as int,
+        on: (j['on'] ?? true) as bool,
       );
 }
 
-/// Bridge to the Android side (PackageManager + local VpnService).
-class BlockService {
-  static const _ch = MethodChannel('blocker/native');
-
-  static Future<T?> _call<T>(String method, [Object? args]) async {
-    try {
-      return await _ch.invokeMethod<T>(method, args);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Future<NativeState> getState() async {
-    final m = await _call<Map>('getState');
-    return m == null ? NativeState() : NativeState.fromMap(m);
-  }
-
-  static Future<List<AppItem>> getApps() async {
-    final l = await _call<List>('getApps') ?? [];
-    return l.map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
-      return AppItem(
-        name: m['name'] as String,
-        package: m['package'] as String,
-        icon: m['icon'] as Uint8List?,
-        system: m['system'] as bool? ?? false,
-      );
-    }).toList();
-  }
-
-  /// Shows the system VPN permission dialog if needed. True when granted.
-  static Future<bool> prepareVpn() async => await _call<bool>('prepareVpn') ?? false;
-
-  static Future<void> setBlocked(Iterable<String> packages) =>
-      _call('setBlocked', {'packages': packages.toList()});
-
-  static Future<void> setMaster(bool on) => _call('setMaster', {'on': on});
-
-  static Future<void> setSchedule(bool on, int start, int end, int days) =>
-      _call('setSchedule', {'on': on, 'start': start, 'end': end, 'days': days});
-
-  static Future<void> timedBlock(int minutes) => _call('timedBlock', {'minutes': minutes});
-
-  static Future<void> setPref(String key, Object value) =>
-      _call('setPref', {'key': key, 'value': value});
-
-  static Future<void> openAppInfo(String package) => _call('openAppInfo', {'package': package});
-}
-
-// ===== widgets/common.dart =====
-class AppSwitch extends StatelessWidget {
-  AppSwitch({super.key, required this.value, required this.onChanged});
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    bool sel(Set<WidgetState> s) => s.contains(WidgetState.selected);
-    return Switch(
-      value: value,
-      onChanged: onChanged,
-      thumbIcon: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? Icon(Icons.check, color: AppColors.accent) : null,
-      ),
-      thumbColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.onAccent : Color(0xFF8A9796),
-      ),
-      trackColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.accent : Color(0xFF1B2021),
-      ),
-      trackOutlineColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.accent : Color(0xFF5F6B6A),
-      ),
-    );
-  }
-}
-
-class PageHeader extends StatelessWidget {
-  PageHeader(this.title, this.subtitle, {super.key, this.actions = const []});
-  final String title;
-  final String subtitle;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 14, 12, 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
-                    SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.muted)),
-                  ],
-                ),
-              ),
-              ...actions,
-            ],
-          ),
-        ),
-      );
-}
-
-class Box extends StatelessWidget {
-  Box({super.key, required this.child, this.padding = const EdgeInsets.all(16)});
-  final Widget child;
-  final EdgeInsets padding;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: child,
-      );
-}
-
-// ===== widgets/app_card.dart =====
-class AppCard extends StatefulWidget {
-  const AppCard({super.key, required this.app, required this.onChanged, required this.onInfo});
-  final AppItem app;
-  final ValueChanged<bool> onChanged;
-  final VoidCallback onInfo;
-
-  @override
-  State<AppCard> createState() => _AppCardState();
-}
-
-class _AppCardState extends State<AppCard> {
-  bool open = false;
-
-  Widget _icon(AppItem a) => ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: a.icon != null
-            ? Image.memory(a.icon!, width: 46, height: 46, gaplessPlayback: true)
-            : Container(
-                width: 46,
-                height: 46,
-                alignment: Alignment.center,
-                color: AppColors.tonal,
-                child: Text(a.letter,
-                    style: TextStyle(
-                        fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.accent)),
-              ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    final a = widget.app;
-    final on = a.blocked;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => open = !open),
-      child: AnimatedSize(
-        duration: Duration(milliseconds: 200),
-        alignment: Alignment.topCenter,
-        child: Container(
-          margin: EdgeInsets.only(bottom: 8),
-          padding: EdgeInsets.fromLTRB(12, 12, 12, 12),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            gradient: on
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.accent.withAlpha(40), AppColors.accent.withAlpha(10)],
-                  )
-                : null,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: on ? AppColors.accent.withAlpha(96) : AppColors.border),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  _icon(a),
-                  SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(a.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
-                        Text(on ? 'Blocked \u00b7 Wi-Fi & data' : 'Allowed',
-                            style: TextStyle(
-                                fontSize: 12, color: on ? AppColors.accent2 : AppColors.sub)),
-                      ],
-                    ),
-                  ),
-                  Icon(open ? Icons.expand_less : Icons.expand_more, color: AppColors.muted),
-                  SizedBox(width: 6),
-                  AppSwitch(value: on, onChanged: widget.onChanged),
-                ],
-              ),
-              if (open)
-                Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(a.package,
-                            style: TextStyle(fontSize: 12, color: AppColors.hint)),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: widget.onInfo,
-                        icon: Icon(Icons.info_outline, size: 18),
-                        label: Text('App info'),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ===== screens/apps_page.dart =====
-class AppsPage extends StatefulWidget {
-  const AppsPage({
-    super.key,
+class Reminder {
+  Reminder({
+    required this.id,
     required this.title,
-    required this.apps,
-    required this.st,
-    required this.onlyBlocked,
-    required this.onToggle,
-    required this.onMaster,
-    required this.onTimer,
-    required this.onInfo,
+    required this.kind,
+    required this.subject,
+    required this.when,
+    required this.before,
+    this.done = false,
   });
-  final String title;
-  final List<AppItem> apps;
-  final NativeState st;
-  final bool onlyBlocked;
-  final void Function(AppItem, bool) onToggle;
-  final ValueChanged<bool> onMaster;
-  final VoidCallback onTimer;
-  final ValueChanged<AppItem> onInfo;
 
-  @override
-  State<AppsPage> createState() => _AppsPageState();
+  int id;
+  String title;
+  String kind; // assignment | exam
+  String subject;
+  DateTime when;
+  int before;
+  bool done;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'kind': kind,
+        'subject': subject,
+        'when': when.millisecondsSinceEpoch,
+        'before': before,
+        'done': done,
+      };
+
+  factory Reminder.fromJson(Map<String, dynamic> j) => Reminder(
+        id: j['id'] as int,
+        title: j['title'] as String,
+        kind: j['kind'] as String,
+        subject: (j['subject'] ?? '') as String,
+        when: DateTime.fromMillisecondsSinceEpoch(j['when'] as int),
+        before: j['before'] as int,
+        done: (j['done'] ?? false) as bool,
+      );
 }
 
-class _AppsPageState extends State<AppsPage> {
-  String query = '';
-  int chip = 0;
-  bool blockedFirst = false;
-  static const chips = ['All', 'Blocked', 'Allowed', 'System'];
+// ───────────────────────── حالة التطبيق / App state ─────────────────────────
 
-  String subtitle(int n) {
-    if (widget.onlyBlocked) return '$n apps in the block list';
-    if (widget.st.running) return 'Protection on \u00b7 $n apps offline';
-    if (n == 0) return 'Select apps to block';
-    return 'Protection off \u00b7 $n apps selected';
-  }
+class AppState extends ChangeNotifier {
+  late SharedPreferences _p;
 
-  @override
-  Widget build(BuildContext context) {
-    final n = widget.apps.where((a) => a.blocked).length;
-    var items = widget.apps
-        .where((a) => a.name.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-    if (widget.onlyBlocked) {
-      items = items.where((a) => a.blocked).toList();
-    } else if (chip == 1) {
-      items = items.where((a) => a.blocked).toList();
-    } else if (chip == 2) {
-      items = items.where((a) => !a.blocked).toList();
-    } else if (chip == 3) {
-      items = items.where((a) => a.system).toList();
-    } else if (!widget.st.showSystem) {
-      items = items.where((a) => !a.system || a.blocked).toList();
+  bool onboarded = false;
+  String lang = 'ar';
+  ThemeMode themeMode = ThemeMode.light;
+  bool use24 = false;
+  int defBefore = 10;
+
+  String soundMode = 'default'; // default | custom
+  String toneUri = '';
+  String toneTitle = '';
+  bool continuous = true;
+  int repeatMin = 0; // 0 = حتى أوقفه
+  bool vibrate = true;
+
+  List<Subject> subjects = [];
+  List<Lecture> lectures = [];
+  List<Reminder> reminders = [];
+  int _nextId = 1;
+
+  Future<void> load() async {
+    _p = await SharedPreferences.getInstance();
+    onboarded = _p.getBool('onboarded') ?? false;
+    lang = _p.getString('lang') ?? 'ar';
+    final tm = _p.getString('theme');
+    themeMode = ThemeMode.values.firstWhere((m) => m.name == tm, orElse: () => ThemeMode.light);
+    use24 = _p.getBool('use24') ?? false;
+    defBefore = _p.getInt('defBefore') ?? 10;
+    soundMode = _p.getString('soundMode') ?? 'default';
+    toneUri = _p.getString('toneUri') ?? '';
+    toneTitle = _p.getString('toneTitle') ?? '';
+    continuous = _p.getBool('continuous') ?? true;
+    repeatMin = _p.getInt('repeatMin') ?? 0;
+    vibrate = _p.getBool('vibrate') ?? true;
+    final raw = _p.getString('data');
+    if (raw != null) {
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      lectures = (j['lectures'] as List).map((e) => Lecture.fromJson(e as Map<String, dynamic>)).toList();
+      reminders = (j['reminders'] as List).map((e) => Reminder.fromJson(e as Map<String, dynamic>)).toList();
+      if (j['subjects'] != null) {
+        subjects = (j['subjects'] as List).map((e) => Subject.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      _nextId = (j['nextId'] ?? 1) as int;
     }
-    if (blockedFirst) {
-      items.sort((a, b) => (b.blocked ? 1 : 0) - (a.blocked ? 1 : 0));
+    // مواد المحاضرات القديمة التي لا توجد في القائمة
+    for (final l in lectures) {
+      if (l.subject.isNotEmpty && !subjects.any((s) => s.name == l.subject)) {
+        subjects.add(Subject(name: l.subject, color: subjects.length % kSubjectColors.length));
+      }
     }
-
-    return Column(
-      children: [
-        PageHeader(
-          widget.title,
-          subtitle(n),
-          actions: [
-            IconButton.filledTonal(
-              onPressed: widget.onTimer,
-              icon: Icon(Icons.timer_outlined),
-              style: IconButton.styleFrom(backgroundColor: AppColors.tonal),
-              tooltip: 'Timed block',
-            ),
-            SizedBox(width: 4),
-            AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
-          ],
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(20, 14, 20, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: (v) => setState(() => query = v),
-                  decoration: InputDecoration(
-                    hintText: 'Search apps\u2026',
-                    hintStyle: TextStyle(color: AppColors.muted),
-                    prefixIcon: Icon(Icons.search, color: AppColors.accent),
-                    filled: true,
-                    fillColor: AppColors.card,
-                    contentPadding: EdgeInsets.symmetric(vertical: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 10),
-              PopupMenuButton<String>(
-                tooltip: 'Sort',
-                onSelected: (v) => setState(() => blockedFirst = v == 'blocked'),
-                itemBuilder: (_) => [
-                  CheckedPopupMenuItem(value: 'az', checked: !blockedFirst, child: Text('Sort A\u2013Z')),
-                  CheckedPopupMenuItem(value: 'blocked', checked: blockedFirst, child: Text('Blocked first')),
-                ],
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(Icons.filter_list_rounded),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!widget.onlyBlocked)
-          SizedBox(
-            height: 56,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              itemCount: chips.length,
-              separatorBuilder: (_, __) => SizedBox(width: 8),
-              itemBuilder: (_, i) => ChoiceChip(
-                label: Text(chips[i]),
-                selected: chip == i,
-                showCheckmark: false,
-                selectedColor: AppColors.accent,
-                backgroundColor: AppColors.card,
-                side: BorderSide(color: AppColors.border),
-                labelStyle: TextStyle(
-                  color: chip == i ? AppColors.onAccent : AppColors.chipText,
-                  fontWeight: FontWeight.w600,
-                ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                onSelected: (_) => setState(() => chip = i),
-              ),
-            ),
-          )
-        else
-          SizedBox(height: 10),
-        Expanded(
-          child: items.isEmpty
-              ? Center(
-                  child: Text(
-                    widget.apps.isEmpty ? 'No apps found on this device' : 'No matching apps',
-                    style: TextStyle(color: AppColors.muted),
-                  ),
-                )
-              : ListView.builder(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  itemCount: items.length,
-                  itemBuilder: (_, i) {
-                    final app = items[i];
-                    return AppCard(
-                      key: ValueKey(app.package),
-                      app: app,
-                      onChanged: (v) => widget.onToggle(app, v),
-                      onInfo: () => widget.onInfo(app),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-// ===== screens/schedule_page.dart =====
-class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key, required this.st, required this.onSchedule});
-  final NativeState st;
-  final Future<bool> Function(bool on, int start, int end, int days) onSchedule;
-
-  @override
-  State<SchedulePage> createState() => _SchedulePageState();
-}
-
-class _SchedulePageState extends State<SchedulePage> {
-  late int startMin = widget.st.start;
-  late int endMin = widget.st.end;
-  late bool on = widget.st.schedOn;
-  late List<bool> days = List.generate(7, (i) => ((widget.st.days >> i) & 1) == 1);
-
-  int get mask {
-    var m = 0;
-    for (var i = 0; i < 7; i++) {
-      if (days[i]) m |= 1 << i;
-    }
-    return m;
-  }
-
-  int get durMin => ((endMin - startMin) % 1440 + 1440) % 1440;
-
-  Future<void> pick(bool isStart) async {
-    final cur = isStart ? startMin : endMin;
-    final t = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
-    );
-    if (t == null) return;
-    final v = t.hour * 60 + t.minute;
-    setState(() => isStart ? startMin = v : endMin = v);
-    if (on) widget.onSchedule(true, startMin, endMin, mask);
-  }
-
-  Future<void> toggle(bool v) async {
-    final ok = await widget.onSchedule(v, startMin, endMin, mask);
-    if (ok) setState(() => on = v);
   }
 
   Future<void> save() async {
-    final ok = await widget.onSchedule(true, startMin, endMin, mask);
-    if (ok) setState(() => on = true);
+    await _p.setBool('onboarded', onboarded);
+    await _p.setString('lang', lang);
+    await _p.setString('theme', themeMode.name);
+    await _p.setBool('use24', use24);
+    await _p.setInt('defBefore', defBefore);
+    await _p.setString('soundMode', soundMode);
+    await _p.setString('toneUri', toneUri);
+    await _p.setString('toneTitle', toneTitle);
+    await _p.setBool('continuous', continuous);
+    await _p.setInt('repeatMin', repeatMin);
+    await _p.setBool('vibrate', vibrate);
+    await _p.setString(
+      'data',
+      jsonEncode({
+        'lectures': lectures.map((e) => e.toJson()).toList(),
+        'reminders': reminders.map((e) => e.toJson()).toList(),
+        'subjects': subjects.map((e) => e.toJson()).toList(),
+        'nextId': _nextId,
+      }),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final h = durMin ~/ 60, m = durMin % 60;
-    final dur = h > 0 ? '$h h${m > 0 ? ' $m m' : ''}' : '$m m';
-    final count = days.where((d) => d).length;
-    return Column(
-      children: [
-        PageHeader('Schedule', 'Auto-block by time of day'),
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(20, 10, 20, 100),
-            children: [
-              Text(
-                'Your selected apps lose internet at the start time and get it back at the end time.',
-                style: TextStyle(fontSize: 14, height: 1.6, color: AppColors.muted),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _TimeCard('Start', startMin, () => pick(true))),
-                  SizedBox(width: 12),
-                  Expanded(child: _TimeCard('End', endMin, () => pick(false))),
-                ],
-              ),
-              SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  for (var i = 0; i < 7; i++)
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => days[i] = !days[i]);
-                        if (on) widget.onSchedule(true, startMin, endMin, mask);
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: days[i] ? AppColors.accent : AppColors.card,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: days[i] ? AppColors.accent : AppColors.border),
-                        ),
-                        child: Text('SMTWTFS'[i],
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: days[i] ? AppColors.onAccent : AppColors.chipText)),
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(height: 14),
-              Box(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Blocks for $dur', style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text(count == 7 ? 'Every day' : '$count days a week',
-                            style: TextStyle(color: AppColors.muted)),
-                      ],
-                    ),
-                    SizedBox(height: 14),
-                    LayoutBuilder(
-                      builder: (_, c) => Stack(
-                        children: [
-                          Container(
-                            height: 10,
-                            decoration: BoxDecoration(
-                                color: AppColors.track, borderRadius: BorderRadius.circular(5)),
-                          ),
-                          Positioned(
-                            left: c.maxWidth * startMin / 1440,
-                            width: (c.maxWidth * durMin / 1440)
-                                .clamp(6.0, c.maxWidth - c.maxWidth * startMin / 1440),
-                            child: Container(
-                              height: 10,
-                              decoration: BoxDecoration(
-                                  color: AppColors.accent, borderRadius: BorderRadius.circular(5)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                        Text('12 PM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 12),
-              Box(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Schedule enabled',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                          Text('Applies to the apps you blocked',
-                              style: TextStyle(fontSize: 12, color: AppColors.sub)),
-                        ],
-                      ),
-                    ),
-                    AppSwitch(value: on, onChanged: toggle),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              SizedBox(
-                height: 58,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(29)),
-                    textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.8),
-                  ),
-                  onPressed: save,
-                  child: Text('SET SCHEDULE'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+  /// يغيّر الحالة ثم يحفظها ويحدّث الواجهة.
+  Future<void> update(VoidCallback change) async {
+    change();
+    notifyListeners();
+    await save();
+  }
+
+  int newId() => _nextId++;
+
+  bool get ar => lang == 'ar';
+  String t(String k) => _tr[lang]![k] ?? k;
+  String dayName(int weekday) => ar ? _daysAr[weekday] : _daysEn[weekday];
+  String shortDay(int weekday) {
+    final n = dayName(weekday);
+    return ar ? n : n.substring(0, 3);
+  }
+
+  Color colorOf(String subject) {
+    for (final s in subjects) {
+      if (s.name == subject) return kSubjectColors[s.color % kSubjectColors.length];
+    }
+    return const Color(0xFF8A94AD);
+  }
+
+  String fmtMin(int m) {
+    final h = (m ~/ 60) % 24;
+    final mm = (m % 60).toString().padLeft(2, '0');
+    if (use24) return '${h.toString().padLeft(2, '0')}:$mm';
+    final h12 = h % 12 == 0 ? 12 : h % 12;
+    final suffix = h < 12 ? (ar ? 'ص' : 'AM') : (ar ? 'م' : 'PM');
+    return '$h12:$mm $suffix';
+  }
+
+  String fmtDateTime(DateTime d) => fmtMin(d.hour * 60 + d.minute);
+
+  String longDate(DateTime d) {
+    final month = ar ? _monthsAr[d.month] : _monthsEn[d.month];
+    return ar ? '${dayName(d.weekday)}، ${d.day} $month' : '${dayName(d.weekday)}, $month ${d.day}';
+  }
+
+  String shortDate(DateTime d) {
+    final month = ar ? _monthsAr[d.month] : _monthsEn[d.month];
+    return ar ? '${d.day} $month' : '$month ${d.day}';
+  }
+
+  String dayLabel(DateTime d) {
+    final now = DateTime.now();
+    final a = DateTime(now.year, now.month, now.day);
+    final b = DateTime(d.year, d.month, d.day);
+    final diff = b.difference(a).inDays;
+    if (diff == 0) return t('today');
+    if (diff == 1) return t('tomorrow');
+    return longDate(d);
+  }
+
+  String minLabel(int m) {
+    if (m % 1440 == 0) {
+      final d = m ~/ 1440;
+      if (ar) return d == 1 ? 'يوم' : (d == 2 ? 'يومان' : '$d أيام');
+      return d == 1 ? '1 day' : '$d days';
+    }
+    if (m % 60 == 0) {
+      final h = m ~/ 60;
+      if (ar) return h == 1 ? 'ساعة' : (h == 2 ? 'ساعتان' : '$h ساعات');
+      return '$h h';
+    }
+    if (ar) return m <= 10 ? '$m دقائق' : '$m دقيقة';
+    return '$m min';
+  }
+
+  String inText(Duration d) {
+    final m = d.inMinutes;
+    if (m < 1) return ar ? 'الآن' : 'now';
+    if (m < 60) return ar ? 'بعد ${minLabel(m)}' : 'in $m min';
+    if (m < 1440) {
+      final h = m ~/ 60;
+      final r = m % 60;
+      if (ar) return 'بعد ${minLabel(h * 60)}${r > 0 ? ' و${minLabel(r)}' : ''}';
+      return 'in $h h${r > 0 ? ' $r min' : ''}';
+    }
+    final days = m ~/ 1440;
+    return ar ? 'بعد ${minLabel(days * 1440)}' : 'in $days d';
+  }
+
+  String get toneName => soundMode == 'default' || toneTitle.isEmpty ? t('phoneDefault') : toneTitle;
+}
+
+class AppScope extends InheritedNotifier<AppState> {
+  const AppScope({super.key, required AppState app, required super.child}) : super(notifier: app);
+
+  static AppState of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
+}
+
+// ───────────────────────── أدوات مساعدة / Helpers ─────────────────────────
+
+DateTime nextOccurrence(int weekday, int minutes, DateTime from) {
+  var d = DateTime(from.year, from.month, from.day, minutes ~/ 60, minutes % 60);
+  for (var i = 0; i < 9; i++) {
+    if (d.weekday == weekday && !d.isBefore(from)) return d;
+    d = DateTime(d.year, d.month, d.day + 1, minutes ~/ 60, minutes % 60);
+  }
+  return d;
+}
+
+/// تاريخ يوم الدراسة داخل الأسبوع الحالي (يبدأ السبت).
+DateTime weekDate(int weekday) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final sinceSat = (now.weekday - 6) % 7;
+  final sat = today.subtract(Duration(days: sinceSat));
+  final idx = kWeekdays.indexOf(weekday);
+  return DateTime(sat.year, sat.month, sat.day + (idx < 0 ? 0 : idx));
+}
+
+// ───────────────────────── الإشعارات / Notifications ─────────────────────────
+
+final FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
+final GlobalKey<NavigatorState> navKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> msgKey = GlobalKey<ScaffoldMessengerState>();
+const MethodChannel _ringtoneChannel = MethodChannel('jadwali/ringtone');
+
+/// إلغاء إشعار بأمان: لا يعلق ولا يرمي خطأ مهما حدث.
+Future<void> safeCancel(int id) async {
+  try {
+    await plugin.cancel(id).timeout(const Duration(seconds: 3));
+  } catch (_) {}
+}
+
+String kindKey(String k) => (k == 'exam' || k == 'final') ? k : 'assignment';
+
+String _payload(int id, String title, String sub) => jsonEncode({'id': id, 'title': title, 'sub': sub});
+
+void openAlarm(String? payload) {
+  if (payload == null) return;
+  try {
+    final j = jsonDecode(payload) as Map<String, dynamic>;
+    navKey.currentState?.push(MaterialPageRoute<void>(
+      builder: (_) => AlarmPage(id: j['id'] as int, title: j['title'] as String, sub: j['sub'] as String),
+    ));
+  } catch (_) {}
+}
+
+Future<void> initNotifications() async {
+  tzdata.initializeTimeZones();
+  try {
+    final name = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(name));
+  } catch (_) {}
+
+  await plugin.initialize(
+    const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+    onDidReceiveNotificationResponse: (r) => openAlarm(r.payload),
+  );
+
+  final launch = await plugin.getNotificationAppLaunchDetails();
+  if (launch?.didNotificationLaunchApp ?? false) {
+    final payload = launch!.notificationResponse?.payload;
+    WidgetsBinding.instance.addPostFrameCallback((_) => openAlarm(payload));
   }
 }
 
-class _TimeCard extends StatelessWidget {
-  _TimeCard(this.label, this.minutes, this.onTap);
-  final String label;
-  final int minutes;
-  final VoidCallback onTap;
+AndroidFlutterLocalNotificationsPlugin? get _android =>
+    plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-  @override
-  Widget build(BuildContext context) {
-    final hour = minutes ~/ 60;
-    final h12 = hour % 12 == 0 ? 12 : hour % 12;
-    final txt = '${h12.toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
-    return InkWell(
-      borderRadius: BorderRadius.circular(26),
-      onTap: onTap,
-      child: Box(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w600)),
-            SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(txt,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5)),
-                SizedBox(width: 5),
-                Text(hour < 12 ? 'AM' : 'PM',
-                    style: TextStyle(fontSize: 14, color: AppColors.muted)),
-              ],
-            ),
-            SizedBox(height: 4),
-            Text('Tap to change', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-          ],
-        ),
-      ),
-    );
+Future<bool> askNotificationsPermission() async {
+  try {
+    return (await _android?.requestNotificationsPermission()) ?? false;
+  } catch (_) {
+    return false;
   }
 }
 
-// ===== screens/settings_page.dart =====
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key, required this.st, required this.onPref, required this.onVpn});
-  final NativeState st;
-  final void Function(String key, bool value) onPref;
-  final Future<bool> Function() onVpn;
+Future<bool> askExactAlarmsPermission() async {
+  try {
+    return (await _android?.requestExactAlarmsPermission()) ?? false;
+  } catch (_) {
+    return false;
+  }
+}
 
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          PageHeader('Settings', 'Customize how blocking works'),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(16, 14, 16, 100),
-              children: [
-                _label('Appearance'),
-                Container(
-                  padding: EdgeInsets.all(6),
-                  margin: EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      _mode('Dark', Icons.dark_mode_outlined, true),
-                      SizedBox(width: 6),
-                      _mode('Light', Icons.light_mode_outlined, false),
-                    ],
-                  ),
-                ),
-                _label('Behavior'),
-                _group([
-                  _tile(Icons.power_settings_new, 'Start on boot', 'Resume protection after restart',
-                      sw: st.boot, on: (v) => onPref('boot', v)),
-                  _tile(Icons.apps, 'Show system apps', 'Include system apps in the list',
-                      sw: st.showSystem, on: (v) => onPref('showSystem', v)),
-                ]),
-                _label('General'),
-                _group([
-                  _tile(Icons.vpn_key_outlined, 'VPN permission',
-                      'Needed to block apps (a key icon shows while active)',
-                      trailing: st.vpnGranted ? 'Granted' : 'Request', onTap: onVpn),
-                  _tile(Icons.info_outline, 'About', 'Version 1.0', onTap: () async {
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'Block Internet Access',
-                      applicationVersion: '1.0',
-                      children: [
-                        Text('Blocks internet access for the apps you choose using a local VPN. '
-                            'No traffic leaves your device and nothing is collected.'),
-                      ],
-                    );
-                  }),
-                ]),
-              ],
-            ),
-          ),
-        ],
+NotificationDetails _details(AppState a) {
+  final custom = a.soundMode == 'custom' && a.toneUri.isNotEmpty;
+  var h = 0;
+  if (custom) {
+    for (final c in a.toneUri.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+  }
+  // القناة في أندرويد لا تتغير بعد إنشائها، لذلك يتغير معرّفها مع الإعدادات.
+  final channelId = 'jadwali_${h}_${a.continuous ? 1 : 0}_${a.vibrate ? 1 : 0}';
+  return NotificationDetails(
+    android: AndroidNotificationDetails(
+      channelId,
+      'Jadwali alerts',
+      channelDescription: 'Lecture, assignment and exam alerts',
+      importance: Importance.max,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      playSound: true,
+      sound: custom ? UriAndroidNotificationSound(a.toneUri) : null,
+      enableVibration: a.vibrate,
+      fullScreenIntent: true,
+      autoCancel: true,
+      timeoutAfter: (a.continuous && a.repeatMin > 0) ? a.repeatMin * 60000 : null,
+      // FLAG_INSISTENT = 4: يكرر الصوت حتى يتم إغلاق الإشعار
+      additionalFlags: a.continuous ? Int32List.fromList(<int>[4]) : null,
+    ),
+  );
+}
+
+Future<void> _schedule(
+  int id,
+  String title,
+  String body,
+  DateTime at,
+  AppState a, {
+  DateTimeComponents? repeat,
+}) async {
+  final when = tz.TZDateTime.from(at, tz.local);
+  Future<void> go(AndroidScheduleMode mode) => plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        _details(a),
+        payload: _payload(id, title, body),
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: repeat,
       );
-
-  Widget _label(String t) => Padding(
-        padding: EdgeInsets.only(left: 4, bottom: 6),
-        child: Text(t.toUpperCase(),
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.accent)),
-      );
-
-  Widget _mode(String label, IconData icon, bool dark) {
-    final sel = AppColors.dark == dark;
-    final fg = sel ? AppColors.onAccent : AppColors.muted;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setDark(dark);
-          BlockService.setPref('dark', dark);
-        },
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 200),
-          height: 46,
-          decoration: BoxDecoration(
-            color: sel ? AppColors.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: fg),
-              SizedBox(width: 8),
-              Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: fg)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _group(List<Widget> rows) => Container(
-        margin: EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: AppColors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(height: 1, color: AppColors.border),
-              rows[i],
-            ],
-          ],
-        ),
-      );
-
-  Widget _tile(IconData icon, String title, String sub,
-      {bool? sw, ValueChanged<bool>? on, String? trailing, Future<dynamic> Function()? onTap}) {
-    return InkWell(
-      onTap: sw == null && onTap != null ? () => onTap() : null,
-      child: SizedBox(
-        height: 64,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration:
-                    BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, size: 19, color: AppColors.accent2),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    if (sub.isNotEmpty)
-                      Text(sub,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: AppColors.sub)),
-                  ],
-                ),
-              ),
-              if (sw != null)
-                AppSwitch(value: sw, onChanged: on)
-              else ...[
-                if (trailing != null)
-                  Text(trailing, style: TextStyle(fontSize: 13, color: AppColors.muted)),
-                Icon(Icons.chevron_right, color: AppColors.muted),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
+  try {
+    await go(AndroidScheduleMode.exactAllowWhileIdle);
+  } catch (_) {
+    try {
+      await go(AndroidScheduleMode.inexactAllowWhileIdle);
+    } catch (_) {}
   }
 }
 
-// ===== screens/splash_screen.dart =====
-class SplashScreen extends StatefulWidget {
-  SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
+Future<void> scheduleReminder(AppState a, Reminder r) async {
+  await safeCancel(r.id);
+  if (r.done) return;
+  final at = r.when.subtract(Duration(minutes: r.before));
+  if (at.isBefore(DateTime.now())) return;
+  final kindLbl = a.t(kindKey(r.kind));
+  final body = r.subject.isEmpty ? kindLbl : '${r.subject} · $kindLbl';
+  await _schedule(r.id, r.title, body, at, a);
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 2600),
-  );
-  late final Animation<double> _scale = CurvedAnimation(
-    parent: _c,
-    curve: Interval(0, 0.4, curve: Curves.easeOutBack),
-  );
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _c,
-    curve: Interval(0, 0.4, curve: Curves.easeOut),
-  );
-  late final Animation<double> _text = CurvedAnimation(
-    parent: _c,
-    curve: Interval(0.25, 0.6, curve: Curves.easeOut),
-  );
+Future<void> scheduleLecture(AppState a, Lecture l) async {
+  await safeCancel(l.id);
+  if (!l.on) return;
+  final now = DateTime.now();
+  var start = nextOccurrence(l.weekday, l.start, now);
+  var at = start.subtract(Duration(minutes: l.before));
+  while (at.isBefore(now)) {
+    start = DateTime(start.year, start.month, start.day + 7, l.start ~/ 60, l.start % 60);
+    at = start.subtract(Duration(minutes: l.before));
+  }
+  final body = l.room.isEmpty ? a.fmtMin(l.start) : '${a.fmtMin(l.start)} · ${a.t('hall')} ${l.room}';
+  await _schedule(l.id, l.subject, body, at, a, repeat: DateTimeComponents.dayOfWeekAndTime);
+}
 
-  @override
-  void initState() {
-    super.initState();
-    _c.addStatusListener((s) {
-      if (s == AnimationStatus.completed && mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            transitionDuration: Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => HomeShell(),
-            transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
-          ),
-        );
+/// يعيد جدولة كل شيء (بعد تغيير إعدادات النغمة أو اللغة أو نظام الوقت).
+Future<void> rescheduleAll(AppState a) async {
+  for (final l in a.lectures) {
+    await scheduleLecture(a, l);
+  }
+  for (final r in a.reminders) {
+    await scheduleReminder(a, r);
+  }
+}
+
+Future<void> previewAlert(AppState a) async {
+  const id = 2147483000;
+  final payload = _payload(id, a.t('soundTitle'), a.t('previewBody'));
+  await plugin.show(id, a.t('soundTitle'), a.t('previewBody'), _details(a), payload: payload);
+  openAlarm(payload);
+}
+
+Future<void> pickRingtone(AppState a) async {
+  try {
+    final res = await _ringtoneChannel.invokeMethod<Map<dynamic, dynamic>>('pick', {'current': a.toneUri});
+    if (res != null) {
+      final uri = (res['uri'] ?? '') as String;
+      final title = (res['title'] ?? '') as String;
+      if (uri.isNotEmpty) {
+        await a.update(() {
+          a.toneUri = uri;
+          a.toneTitle = title;
+          a.soundMode = 'custom';
+        });
       }
-    });
-    _c.forward();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0.9, -1.1),
-              radius: 1.1,
-              colors: [AppColors.accent.withAlpha(36), Colors.transparent],
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Spacer(flex: 3),
-                FadeTransition(
-                  opacity: _fade,
-                  child: ScaleTransition(
-                    scale: _scale,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(36),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF26363A), Color(0xFF182523)],
-                        ),
-                        border: Border.all(color: AppColors.accent.withAlpha(96)),
-                        boxShadow: [BoxShadow(color: AppColors.accent.withAlpha(46), blurRadius: 50)],
-                      ),
-                      child: Icon(Icons.wifi_off_rounded, size: 62, color: AppColors.accent),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 28),
-                FadeTransition(
-                  opacity: _text,
-                  child: Column(
-                    children: [
-                      Text(
-                        'Block Internet\nAccess',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 28, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: -0.4),
-                      ),
-                      SizedBox(height: 8),
-                      Text('Take control of every app\u2019s connection',
-                          style: TextStyle(fontSize: 14, color: AppColors.muted)),
-                    ],
-                  ),
-                ),
-                Spacer(flex: 3),
-                AnimatedBuilder(
-                  animation: _c,
-                  builder: (_, __) => SizedBox(
-                    width: 140,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: _c.value,
-                        minHeight: 4,
-                        color: AppColors.accent,
-                        backgroundColor: AppColors.tonal,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text('Securing your connections\u2026',
-                    style: TextStyle(fontSize: 12, color: AppColors.muted)),
-                SizedBox(height: 18),
-                Text('Version 1.0', style: TextStyle(fontSize: 11, color: Color(0xFF5F6F6D))),
-                SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ),
-      );
+    }
+  } catch (_) {}
 }
 
-// ===== home_shell.dart =====
-class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+// ───────────────────────── التطبيق / App ─────────────────────────
 
-  @override
-  State<HomeShell> createState() => _HomeShellState();
-}
-
-class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
-  int tab = 0;
-  bool loading = true;
-  List<AppItem> apps = [];
-  NativeState st = NativeState();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    themeNotifier.addListener(refresh);
-    load();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    themeNotifier.removeListener(refresh);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) reloadState();
-  }
-
-  void refresh() {
-    if (mounted) setState(() {});
-  }
-
-  void say(String m) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(m), duration: Duration(seconds: 2)));
-  }
-
-  Future<void> reloadState() async {
-    st = await BlockService.getState();
-    refresh();
-  }
-
-  Future<void> load() async {
-    st = await BlockService.getState();
-    final list = await BlockService.getApps();
-    for (final a in list) {
-      a.blocked = st.blocked.contains(a.package);
-    }
-    apps = list;
-    loading = false;
-    refresh();
-  }
-
-  Future<bool> ensureVpn() async {
-    final ok = await BlockService.prepareVpn();
-    if (!ok) say('VPN permission is required to block apps');
-    await reloadState();
-    return ok;
-  }
-
-  Future<void> toggleApp(AppItem a, bool v) async {
-    if (v && !await ensureVpn()) return;
-    a.blocked = v;
-    refresh();
-    await BlockService.setBlocked(apps.where((x) => x.blocked).map((x) => x.package));
-    await reloadState();
-  }
-
-  Future<void> setMaster(bool v) async {
-    if (v && !await ensureVpn()) return;
-    await BlockService.setMaster(v);
-    await reloadState();
-  }
-
-  int _minsToMorning() {
-    final n = DateTime.now();
-    var t = DateTime(n.year, n.month, n.day, 7);
-    if (!t.isAfter(n)) t = t.add(Duration(days: 1));
-    return t.difference(n).inMinutes;
-  }
-
-  Future<void> timer() async {
-    final opts = <List<Object>>[
-      ['15 minutes', 15],
-      ['1 hour', 60],
-      ['4 hours', 240],
-      ['Until tomorrow morning', _minsToMorning()],
-    ];
-    final pick = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Block selected apps for\u2026',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              ),
-            ),
-            for (final o in opts)
-              ListTile(
-                leading: Icon(Icons.timer_outlined, color: AppColors.accent),
-                title: Text(o[0] as String),
-                onTap: () => Navigator.pop(ctx, o[1] as int),
-              ),
-            if (st.timedActive)
-              ListTile(
-                leading: Icon(Icons.close, color: AppColors.accent),
-                title: Text('Cancel timed block'),
-                onTap: () => Navigator.pop(ctx, -1),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (pick == null) return;
-    if (pick < 0) {
-      await BlockService.timedBlock(0);
-      await reloadState();
-      say('Timed block cancelled');
-      return;
-    }
-    if (!apps.any((a) => a.blocked)) {
-      say('Select the apps to block first');
-      return;
-    }
-    if (!await ensureVpn()) return;
-    await BlockService.timedBlock(pick);
-    await reloadState();
-    say('Selected apps are blocked for ${o0(pick)}');
-  }
-
-  String o0(int m) => m < 60 ? '$m minutes' : '${(m / 60).toStringAsFixed(m % 60 == 0 ? 0 : 1)} hours';
-
-  Future<bool> schedule(bool on, int s, int e, int d) async {
-    if (on && !await ensureVpn()) return false;
-    await BlockService.setSchedule(on, s, e, d);
-    await reloadState();
-    if (!on) {
-      say('Schedule turned off');
-    } else if (!apps.any((a) => a.blocked)) {
-      say('Schedule saved. Select the apps to block');
-    } else {
-      say('Schedule saved');
-    }
-    return true;
-  }
-
-  Future<void> setPref(String key, bool v) async {
-    await BlockService.setPref(key, v);
-    await reloadState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = <Widget>[
-      AppsPage(
-        title: 'Block Internet Access',
-        apps: apps,
-        st: st,
-        onlyBlocked: false,
-        onToggle: toggleApp,
-        onMaster: setMaster,
-        onTimer: timer,
-        onInfo: (a) => BlockService.openAppInfo(a.package),
-      ),
-      AppsPage(
-        title: 'Blocked Apps',
-        apps: apps,
-        st: st,
-        onlyBlocked: true,
-        onToggle: toggleApp,
-        onMaster: setMaster,
-        onTimer: timer,
-        onInfo: (a) => BlockService.openAppInfo(a.package),
-      ),
-      SchedulePage(st: st, onSchedule: schedule),
-      SettingsPage(st: st, onPref: setPref, onVpn: ensureVpn),
-    ];
-
-    return Scaffold(
-      extendBody: true,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0.9, -1.1),
-                  radius: 1.0,
-                  colors: [AppColors.accent.withAlpha(36), Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: loading
-                ? Center(child: CircularProgressIndicator(color: AppColors.accent))
-                : IndexedStack(index: tab, children: pages),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: EdgeInsets.fromLTRB(14, 0, 14, 12),
-          decoration: BoxDecoration(
-            color: AppColors.navBg,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppColors.navBorder),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: NavigationBar(
-            height: 70,
-            backgroundColor: Colors.transparent,
-            indicatorColor: AppColors.navActive,
-            selectedIndex: tab,
-            onDestinationSelected: (i) => setState(() => tab = i),
-            destinations: [
-              NavigationDestination(icon: Icon(Icons.list_rounded), label: 'Apps'),
-              NavigationDestination(icon: Icon(Icons.block), label: 'Blocked'),
-              NavigationDestination(icon: Icon(Icons.timer_outlined), label: 'Schedule'),
-              NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ===== main.dart =====
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final st = await BlockService.getState();
-  setDark(st.dark);
-  runApp(const BlockerApp());
+  final app = AppState();
+  await app.load();
+  await initNotifications();
+  runApp(JadwaliApp(app: app));
 }
 
-class BlockerApp extends StatelessWidget {
-  const BlockerApp({super.key});
+/// ألوان التصميم (مطابقة للمخطط) حسب السمة الحالية.
+class Pal {
+  const Pal({
+    required this.bg,
+    required this.card,
+    required this.text,
+    required this.muted,
+    required this.line,
+    required this.soft,
+    required this.pri,
+    required this.onPri,
+    required this.grn,
+    required this.grnSoft,
+    required this.red,
+    required this.redSoft,
+    required this.amber,
+    required this.amberText,
+    required this.sw,
+  });
+
+  final Color bg, card, text, muted, line, soft, pri, onPri, grn, grnSoft, red, redSoft, amber, amberText, sw;
+
+  static const light = Pal(
+    bg: Color(0xFFF3F5FB),
+    card: Color(0xFFFFFFFF),
+    text: Color(0xFF0E1A3D),
+    muted: Color(0xFF55627F),
+    line: Color(0xFFE2E7F1),
+    soft: Color(0xFFEAEEF8),
+    pri: Color(0xFF0F2A6B),
+    onPri: Color(0xFFFFFFFF),
+    grn: Color(0xFF12805C),
+    grnSoft: Color(0xFFDDF3EA),
+    red: Color(0xFFC62F3E),
+    redSoft: Color(0xFFFBE4E7),
+    amber: Color(0xFFFFF1D6),
+    amberText: Color(0xFF6B4300),
+    sw: Color(0xFFC3CCE0),
+  );
+
+  static const dark = Pal(
+    bg: Color(0xFF080D1E),
+    card: Color(0xFF121A33),
+    text: Color(0xFFEEF2FF),
+    muted: Color(0xFF9DA9CB),
+    line: Color(0xFF222D50),
+    soft: Color(0xFF1A2444),
+    pri: Color(0xFF7EA3FF),
+    onPri: Color(0xFF08133A),
+    grn: Color(0xFF34D399),
+    grnSoft: Color(0xFF103A2E),
+    red: Color(0xFFFF8A94),
+    redSoft: Color(0xFF3C1A22),
+    amber: Color(0xFF3A2E12),
+    amberText: Color(0xFFFFD98A),
+    sw: Color(0xFF34406A),
+  );
+
+  static Pal of(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
+
+ThemeData _theme(Brightness b) {
+  final p = b == Brightness.dark ? Pal.dark : Pal.light;
+  final base = ThemeData(
+    useMaterial3: true,
+    brightness: b,
+    scaffoldBackgroundColor: p.bg,
+    colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E5BD8), brightness: b).copyWith(
+      primary: p.pri,
+      onPrimary: p.onPri,
+      surface: p.bg,
+      onSurface: p.text,
+    ),
+  );
+  return base.copyWith(
+    textTheme: GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme).apply(bodyColor: p.text, displayColor: p.text),
+    appBarTheme: AppBarTheme(backgroundColor: p.bg, foregroundColor: p.text, elevation: 0, scrolledUnderElevation: 0),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.all(Colors.white),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? p.grn : p.sw),
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+    ),
+  );
+}
+
+class JadwaliApp extends StatelessWidget {
+  const JadwaliApp({super.key, required this.app});
+  final AppState app;
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-        valueListenable: themeNotifier,
-        builder: (_, dark, __) => MaterialApp(
+  Widget build(BuildContext context) {
+    return AppScope(
+      app: app,
+      child: Builder(builder: (context) {
+        final a = AppScope.of(context);
+        return MaterialApp(
+          navigatorKey: navKey,
+          scaffoldMessengerKey: msgKey,
+          builder: (context, child) {
+            final mq = MediaQuery.of(context);
+            return MediaQuery(
+              data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15)),
+              child: child!,
+            );
+          },
           debugShowCheckedModeBanner: false,
-          title: 'Block Internet Access',
-          theme: buildTheme(dark),
-          home: SplashScreen(),
-        ),
-      );
+          title: a.t('app'),
+          locale: Locale(a.lang),
+          supportedLocales: const [Locale('ar'), Locale('en')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          themeMode: a.themeMode,
+          theme: _theme(Brightness.light),
+          darkTheme: _theme(Brightness.dark),
+          home: a.onboarded ? const ShellPage() : const SplashPage(),
+        );
+      }),
+    );
+  }
 }
 
-// Alias so the default test generated by `flutter create` (which uses MyApp) still compiles.
-typedef MyApp = BlockerApp;
+// END OF FILE

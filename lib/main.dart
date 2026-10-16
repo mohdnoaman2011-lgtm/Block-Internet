@@ -1,7 +1,9 @@
 // Block Internet Access: complete Flutter app in ONE file (Material 3, dark/light).
-// Put this as lib/main.dart. Requires Flutter 3.22+.
+// Put this as lib/main.dart. Requires Flutter 3.22+ and the native Android code from main.yml.
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // ===== theme.dart =====
 /// Dark / light switch. Call [setDark] to change the whole app.
@@ -52,20 +54,110 @@ ThemeData buildTheme(bool dark) => ThemeData(
 
 // ===== models/app_item.dart =====
 class AppItem {
-  AppItem(this.name, this.colors, {this.blocked = false, this.system = false});
+  AppItem({
+    required this.name,
+    required this.package,
+    this.icon,
+    this.system = false,
+    this.blocked = false,
+  });
+
   final String name;
-  final List<Color> colors;
+  final String package;
+  final Uint8List? icon;
   final bool system;
   bool blocked;
-  String get letter => name[0];
+
+  String get letter => name.isEmpty ? '?' : name[0].toUpperCase();
 }
 
 // ===== services/block_service.dart =====
-/// Hook for the native side (VpnService). Implement with a MethodChannel.
+/// State kept by the native side (SharedPreferences) and read at startup.
+class NativeState {
+  NativeState({
+    this.blocked = const <String>{},
+    this.master = true,
+    this.running = false,
+    this.schedOn = false,
+    this.start = 51,
+    this.end = 111,
+    this.days = 62,
+    this.dark = true,
+    this.boot = true,
+    this.showSystem = false,
+    this.timedUntil = 0,
+    this.vpnGranted = false,
+  });
+
+  final Set<String> blocked;
+  final bool master, running, schedOn, dark, boot, showSystem, vpnGranted;
+  final int start, end, days, timedUntil;
+
+  bool get timedActive => timedUntil > DateTime.now().millisecondsSinceEpoch;
+
+  factory NativeState.fromMap(Map m) => NativeState(
+        blocked: ((m['blocked'] as List?) ?? []).map((e) => e.toString()).toSet(),
+        master: m['master'] as bool? ?? true,
+        running: m['running'] as bool? ?? false,
+        schedOn: m['schedOn'] as bool? ?? false,
+        start: (m['start'] as num?)?.toInt() ?? 51,
+        end: (m['end'] as num?)?.toInt() ?? 111,
+        days: (m['days'] as num?)?.toInt() ?? 62,
+        dark: m['dark'] as bool? ?? true,
+        boot: m['boot'] as bool? ?? true,
+        showSystem: m['showSystem'] as bool? ?? false,
+        timedUntil: (m['timedUntil'] as num?)?.toInt() ?? 0,
+        vpnGranted: m['vpnGranted'] as bool? ?? false,
+      );
+}
+
+/// Bridge to the Android side (PackageManager + local VpnService).
 class BlockService {
-  static Future<void> setBlocked(String app, bool blocked) async {}
-  static Future<void> setMaster(bool on) async {}
-  static Future<void> schedule(TimeOfDay start, TimeOfDay end, List<bool> days) async {}
+  static const _ch = MethodChannel('blocker/native');
+
+  static Future<T?> _call<T>(String method, [Object? args]) async {
+    try {
+      return await _ch.invokeMethod<T>(method, args);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<NativeState> getState() async {
+    final m = await _call<Map>('getState');
+    return m == null ? NativeState() : NativeState.fromMap(m);
+  }
+
+  static Future<List<AppItem>> getApps() async {
+    final l = await _call<List>('getApps') ?? [];
+    return l.map((e) {
+      final m = Map<String, dynamic>.from(e as Map);
+      return AppItem(
+        name: m['name'] as String,
+        package: m['package'] as String,
+        icon: m['icon'] as Uint8List?,
+        system: m['system'] as bool? ?? false,
+      );
+    }).toList();
+  }
+
+  /// Shows the system VPN permission dialog if needed. True when granted.
+  static Future<bool> prepareVpn() async => await _call<bool>('prepareVpn') ?? false;
+
+  static Future<void> setBlocked(Iterable<String> packages) =>
+      _call('setBlocked', {'packages': packages.toList()});
+
+  static Future<void> setMaster(bool on) => _call('setMaster', {'on': on});
+
+  static Future<void> setSchedule(bool on, int start, int end, int days) =>
+      _call('setSchedule', {'on': on, 'start': start, 'end': end, 'days': days});
+
+  static Future<void> timedBlock(int minutes) => _call('timedBlock', {'minutes': minutes});
+
+  static Future<void> setPref(String key, Object value) =>
+      _call('setPref', {'key': key, 'value': value});
+
+  static Future<void> openAppInfo(String package) => _call('openAppInfo', {'package': package});
 }
 
 // ===== widgets/common.dart =====
@@ -146,63 +238,104 @@ class Box extends StatelessWidget {
 }
 
 // ===== widgets/app_card.dart =====
-class AppCard extends StatelessWidget {
-  AppCard({super.key, required this.app, required this.onChanged});
+class AppCard extends StatefulWidget {
+  const AppCard({super.key, required this.app, required this.onChanged, required this.onInfo});
   final AppItem app;
   final ValueChanged<bool> onChanged;
+  final VoidCallback onInfo;
+
+  @override
+  State<AppCard> createState() => _AppCardState();
+}
+
+class _AppCardState extends State<AppCard> {
+  bool open = false;
+
+  Widget _icon(AppItem a) => ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: a.icon != null
+            ? Image.memory(a.icon!, width: 46, height: 46, gaplessPlayback: true)
+            : Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                color: AppColors.tonal,
+                child: Text(a.letter,
+                    style: TextStyle(
+                        fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.accent)),
+              ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final on = app.blocked;
-    return Container(
-      height: 72,
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.fromLTRB(12, 0, 12, 0),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        gradient: on
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.accent.withAlpha(40), AppColors.accent.withAlpha(10)],
-              )
-            : null,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: on ? AppColors.accent.withAlpha(96) : AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              gradient: LinearGradient(colors: app.colors),
-            ),
-            child: Text(app.letter,
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600, color: Colors.white)),
+    final a = widget.app;
+    final on = a.blocked;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => open = !open),
+      child: AnimatedSize(
+        duration: Duration(milliseconds: 200),
+        alignment: Alignment.topCenter,
+        child: Container(
+          margin: EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            gradient: on
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.accent.withAlpha(40), AppColors.accent.withAlpha(10)],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: on ? AppColors.accent.withAlpha(96) : AppColors.border),
           ),
-          SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(app.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
-                Text(on ? 'Blocked \u00b7 Wi-Fi & data' : 'Allowed',
-                    style: TextStyle(
-                        fontSize: 12, color: on ? Color(0xFFA6CFC6) : Color(0xFF7F8E8C))),
-              ],
-            ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _icon(a),
+                  SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(a.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
+                        Text(on ? 'Blocked \u00b7 Wi-Fi & data' : 'Allowed',
+                            style: TextStyle(
+                                fontSize: 12, color: on ? AppColors.accent2 : AppColors.sub)),
+                      ],
+                    ),
+                  ),
+                  Icon(open ? Icons.expand_less : Icons.expand_more, color: AppColors.muted),
+                  SizedBox(width: 6),
+                  AppSwitch(value: on, onChanged: widget.onChanged),
+                ],
+              ),
+              if (open)
+                Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(a.package,
+                            style: TextStyle(fontSize: 12, color: AppColors.hint)),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: widget.onInfo,
+                        icon: Icon(Icons.info_outline, size: 18),
+                        label: Text('App info'),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          Icon(Icons.expand_more, color: AppColors.muted),
-          SizedBox(width: 6),
-          AppSwitch(value: on, onChanged: onChanged),
-        ],
+        ),
       ),
     );
   }
@@ -210,21 +343,25 @@ class AppCard extends StatelessWidget {
 
 // ===== screens/apps_page.dart =====
 class AppsPage extends StatefulWidget {
-  AppsPage({
+  const AppsPage({
     super.key,
     required this.title,
     required this.apps,
+    required this.st,
     required this.onlyBlocked,
-    required this.masterOn,
+    required this.onToggle,
     required this.onMaster,
-    required this.onChanged,
+    required this.onTimer,
+    required this.onInfo,
   });
   final String title;
   final List<AppItem> apps;
+  final NativeState st;
   final bool onlyBlocked;
-  final bool masterOn;
+  final void Function(AppItem, bool) onToggle;
   final ValueChanged<bool> onMaster;
-  final VoidCallback onChanged;
+  final VoidCallback onTimer;
+  final ValueChanged<AppItem> onInfo;
 
   @override
   State<AppsPage> createState() => _AppsPageState();
@@ -233,38 +370,51 @@ class AppsPage extends StatefulWidget {
 class _AppsPageState extends State<AppsPage> {
   String query = '';
   int chip = 0;
+  bool blockedFirst = false;
   static const chips = ['All', 'Blocked', 'Allowed', 'System'];
+
+  String subtitle(int n) {
+    if (widget.onlyBlocked) return '$n apps in the block list';
+    if (widget.st.running) return 'Protection on \u00b7 $n apps offline';
+    if (n == 0) return 'Select apps to block';
+    return 'Protection off \u00b7 $n apps selected';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final blockedCount = widget.apps.where((a) => a.blocked).length;
-    Iterable<AppItem> list =
-        widget.apps.where((a) => a.name.toLowerCase().contains(query.toLowerCase()));
+    final n = widget.apps.where((a) => a.blocked).length;
+    var items = widget.apps
+        .where((a) => a.name.toLowerCase().contains(query.toLowerCase()))
+        .toList();
     if (widget.onlyBlocked) {
-      list = list.where((a) => a.blocked);
-    } else {
-      if (chip == 1) list = list.where((a) => a.blocked);
-      if (chip == 2) list = list.where((a) => !a.blocked);
-      if (chip == 3) list = list.where((a) => a.system);
+      items = items.where((a) => a.blocked).toList();
+    } else if (chip == 1) {
+      items = items.where((a) => a.blocked).toList();
+    } else if (chip == 2) {
+      items = items.where((a) => !a.blocked).toList();
+    } else if (chip == 3) {
+      items = items.where((a) => a.system).toList();
+    } else if (!widget.st.showSystem) {
+      items = items.where((a) => !a.system || a.blocked).toList();
     }
-    final items = list.toList();
+    if (blockedFirst) {
+      items.sort((a, b) => (b.blocked ? 1 : 0) - (a.blocked ? 1 : 0));
+    }
 
     return Column(
       children: [
         PageHeader(
           widget.title,
-          widget.onlyBlocked
-              ? '$blockedCount apps can\u2019t reach the internet'
-              : 'Protection ${widget.masterOn ? 'on' : 'off'} \u00b7 $blockedCount apps offline',
+          subtitle(n),
           actions: [
             IconButton.filledTonal(
-              onPressed: () {},
+              onPressed: widget.onTimer,
               icon: Icon(Icons.timer_outlined),
               style: IconButton.styleFrom(backgroundColor: AppColors.tonal),
               tooltip: 'Timed block',
             ),
             SizedBox(width: 4),
-            AppSwitch(value: widget.masterOn, onChanged: widget.onMaster),
+            AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
           ],
         ),
         Padding(
@@ -293,15 +443,23 @@ class _AppsPageState extends State<AppsPage> {
                 ),
               ),
               SizedBox(width: 10),
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
+              PopupMenuButton<String>(
+                tooltip: 'Sort',
+                onSelected: (v) => setState(() => blockedFirst = v == 'blocked'),
+                itemBuilder: (_) => [
+                  CheckedPopupMenuItem(value: 'az', checked: !blockedFirst, child: Text('Sort A\u2013Z')),
+                  CheckedPopupMenuItem(value: 'blocked', checked: blockedFirst, child: Text('Blocked first')),
+                ],
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Icon(Icons.filter_list_rounded),
                 ),
-                child: Icon(Icons.filter_list_rounded),
               ),
             ],
           ),
@@ -322,7 +480,7 @@ class _AppsPageState extends State<AppsPage> {
                 backgroundColor: AppColors.card,
                 side: BorderSide(color: AppColors.border),
                 labelStyle: TextStyle(
-                  color: chip == i ? AppColors.onAccent : Color(0xFFB6C4C2),
+                  color: chip == i ? AppColors.onAccent : AppColors.chipText,
                   fontWeight: FontWeight.w600,
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -333,21 +491,26 @@ class _AppsPageState extends State<AppsPage> {
         else
           SizedBox(height: 10),
         Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
-            itemCount: items.length,
-            itemBuilder: (_, i) {
-              final app = items[i];
-              return AppCard(
-                app: app,
-                onChanged: (v) {
-                  app.blocked = v;
-                  BlockService.setBlocked(app.name, v);
-                  widget.onChanged();
-                },
-              );
-            },
-          ),
+          child: items.isEmpty
+              ? Center(
+                  child: Text(
+                    widget.apps.isEmpty ? 'No apps found on this device' : 'No matching apps',
+                    style: TextStyle(color: AppColors.muted),
+                  ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  itemCount: items.length,
+                  itemBuilder: (_, i) {
+                    final app = items[i];
+                    return AppCard(
+                      key: ValueKey(app.package),
+                      app: app,
+                      onChanged: (v) => widget.onToggle(app, v),
+                      onInfo: () => widget.onInfo(app),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -356,151 +519,185 @@ class _AppsPageState extends State<AppsPage> {
 
 // ===== screens/schedule_page.dart =====
 class SchedulePage extends StatefulWidget {
-  SchedulePage({super.key});
+  const SchedulePage({super.key, required this.st, required this.onSchedule});
+  final NativeState st;
+  final Future<bool> Function(bool on, int start, int end, int days) onSchedule;
 
   @override
   State<SchedulePage> createState() => _SchedulePageState();
 }
 
 class _SchedulePageState extends State<SchedulePage> {
-  TimeOfDay start = const TimeOfDay(hour: 0, minute: 51);
-  TimeOfDay end = const TimeOfDay(hour: 1, minute: 51);
-  final days = [true, true, true, true, true, false, false];
+  late int startMin = widget.st.start;
+  late int endMin = widget.st.end;
+  late bool on = widget.st.schedOn;
+  late List<bool> days = List.generate(7, (i) => ((widget.st.days >> i) & 1) == 1);
 
-  int get startMin => start.hour * 60 + start.minute;
-  int get durMin => ((end.hour * 60 + end.minute) - startMin + 1440) % 1440;
+  int get mask {
+    var m = 0;
+    for (var i = 0; i < 7; i++) {
+      if (days[i]) m |= 1 << i;
+    }
+    return m;
+  }
+
+  int get durMin => ((endMin - startMin) % 1440 + 1440) % 1440;
 
   Future<void> pick(bool isStart) async {
-    final t = await showTimePicker(context: context, initialTime: isStart ? start : end);
-    if (t != null) setState(() => isStart ? start = t : end = t);
+    final cur = isStart ? startMin : endMin;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+    );
+    if (t == null) return;
+    final v = t.hour * 60 + t.minute;
+    setState(() => isStart ? startMin = v : endMin = v);
+    if (on) widget.onSchedule(true, startMin, endMin, mask);
+  }
+
+  Future<void> toggle(bool v) async {
+    final ok = await widget.onSchedule(v, startMin, endMin, mask);
+    if (ok) setState(() => on = v);
+  }
+
+  Future<void> save() async {
+    final ok = await widget.onSchedule(true, startMin, endMin, mask);
+    if (ok) setState(() => on = true);
   }
 
   @override
   Widget build(BuildContext context) {
     final h = durMin ~/ 60, m = durMin % 60;
     final dur = h > 0 ? '$h h${m > 0 ? ' $m m' : ''}' : '$m m';
-    return ListView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 100),
+    final count = days.where((d) => d).length;
+    return Column(
       children: [
-        PageHeader('Schedule', 'Auto-block by time of day').withoutSidePadding(),
-        SizedBox(height: 10),
-        Text(
-          'Internet is blocked at the start time and restored at the end time. '
-          'After a restart, tap Stop Blocking and reschedule.',
-          style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFFA9B8B6)),
-        ),
-        SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _TimeCard('Start', start, () => pick(true))),
-            SizedBox(width: 12),
-            Expanded(child: _TimeCard('End', end, () => pick(false))),
-          ],
-        ),
-        SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (var i = 0; i < 7; i++)
-              GestureDetector(
-                onTap: () => setState(() => days[i] = !days[i]),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: days[i] ? AppColors.accent : AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: days[i] ? AppColors.accent : AppColors.border),
-                  ),
-                  child: Text('SMTWTFS'[i],
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: days[i] ? AppColors.onAccent : Color(0xFFB6C4C2))),
-                ),
-              ),
-          ],
-        ),
-        SizedBox(height: 14),
-        Box(
-          child: Column(
+        PageHeader('Schedule', 'Auto-block by time of day'),
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(20, 10, 20, 100),
             children: [
+              Text(
+                'Your selected apps lose internet at the start time and get it back at the end time.',
+                style: TextStyle(fontSize: 14, height: 1.6, color: AppColors.muted),
+              ),
+              SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Blocks for $dur', style: TextStyle(fontWeight: FontWeight.w700)),
-                  Text('Selected days', style: TextStyle(color: AppColors.muted)),
+                  Expanded(child: _TimeCard('Start', startMin, () => pick(true))),
+                  SizedBox(width: 12),
+                  Expanded(child: _TimeCard('End', endMin, () => pick(false))),
                 ],
               ),
               SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (_, c) => Stack(
-                  children: [
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                          color: Color(0xFF232A2B), borderRadius: BorderRadius.circular(5)),
-                    ),
-                    Positioned(
-                      left: c.maxWidth * startMin / 1440,
-                      width: (c.maxWidth * durMin / 1440).clamp(6.0, c.maxWidth),
-                      child: Container(
-                        height: 10,
-                        decoration:
-                            BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(5)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('12 AM', style: TextStyle(fontSize: 11, color: Color(0xFF6F7F7D))),
-                  Text('12 PM', style: TextStyle(fontSize: 11, color: Color(0xFF6F7F7D))),
-                  Text('12 AM', style: TextStyle(fontSize: 11, color: Color(0xFF6F7F7D))),
+                  for (var i = 0; i < 7; i++)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => days[i] = !days[i]);
+                        if (on) widget.onSchedule(true, startMin, endMin, mask);
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: days[i] ? AppColors.accent : AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: days[i] ? AppColors.accent : AppColors.border),
+                        ),
+                        child: Text('SMTWTFS'[i],
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: days[i] ? AppColors.onAccent : AppColors.chipText)),
+                      ),
+                    ),
                 ],
               ),
-            ],
-          ),
-        ),
-        SizedBox(height: 12),
-        Box(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Expanded(
+              SizedBox(height: 14),
+              Box(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Apply to blocked apps',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    Text('Tap to choose apps', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Blocks for $dur', style: TextStyle(fontWeight: FontWeight.w700)),
+                        Text(count == 7 ? 'Every day' : '$count days a week',
+                            style: TextStyle(color: AppColors.muted)),
+                      ],
+                    ),
+                    SizedBox(height: 14),
+                    LayoutBuilder(
+                      builder: (_, c) => Stack(
+                        children: [
+                          Container(
+                            height: 10,
+                            decoration: BoxDecoration(
+                                color: AppColors.track, borderRadius: BorderRadius.circular(5)),
+                          ),
+                          Positioned(
+                            left: c.maxWidth * startMin / 1440,
+                            width: (c.maxWidth * durMin / 1440)
+                                .clamp(6.0, c.maxWidth - c.maxWidth * startMin / 1440),
+                            child: Container(
+                              height: 10,
+                              decoration: BoxDecoration(
+                                  color: AppColors.accent, borderRadius: BorderRadius.circular(5)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
+                        Text('12 PM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
+                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: AppColors.muted),
+              SizedBox(height: 12),
+              Box(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Schedule enabled',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                          Text('Applies to the apps you blocked',
+                              style: TextStyle(fontSize: 12, color: AppColors.sub)),
+                        ],
+                      ),
+                    ),
+                    AppSwitch(value: on, onChanged: toggle),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              SizedBox(
+                height: 58,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(29)),
+                    textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+                  ),
+                  onPressed: save,
+                  child: Text('SET SCHEDULE'),
+                ),
+              ),
             ],
-          ),
-        ),
-        SizedBox(height: 16),
-        SizedBox(
-          height: 58,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: AppColors.onAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(29)),
-              textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.8),
-            ),
-            onPressed: () {
-              BlockService.schedule(start, end, days);
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text('Schedule set')));
-            },
-            child: Text('SET SCHEDULE'),
           ),
         ),
       ],
@@ -508,21 +705,17 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 }
 
-extension on Widget {
-  // The header already has its own padding; keep list padding from doubling.
-  Widget withoutSidePadding() => Transform.translate(offset: Offset(-8, 0), child: this);
-}
-
 class _TimeCard extends StatelessWidget {
-  _TimeCard(this.label, this.time, this.onTap);
+  _TimeCard(this.label, this.minutes, this.onTap);
   final String label;
-  final TimeOfDay time;
+  final int minutes;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final txt = '${h.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final hour = minutes ~/ 60;
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    final txt = '${h12.toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
     return InkWell(
       borderRadius: BorderRadius.circular(26),
       onTap: onTap,
@@ -538,13 +731,14 @@ class _TimeCard extends StatelessWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(txt,
-                    style: TextStyle(
-                        fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5)),
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5)),
                 SizedBox(width: 5),
-                Text(time.period == DayPeriod.am ? 'AM' : 'PM',
+                Text(hour < 12 ? 'AM' : 'PM',
                     style: TextStyle(fontSize: 14, color: AppColors.muted)),
               ],
             ),
+            SizedBox(height: 4),
+            Text('Tap to change', style: TextStyle(fontSize: 11, color: AppColors.hint)),
           ],
         ),
       ),
@@ -553,77 +747,72 @@ class _TimeCard extends StatelessWidget {
 }
 
 // ===== screens/settings_page.dart =====
-class SettingsPage extends StatefulWidget {
-  SettingsPage({super.key});
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key, required this.st, required this.onPref, required this.onVpn});
+  final NativeState st;
+  final void Function(String key, bool value) onPref;
+  final Future<bool> Function() onVpn;
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  bool wifi = true, data = true, roam = false, boot = true, notif = true, newApps = false;
-
-  @override
-  Widget build(BuildContext context) => ListView(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
+  Widget build(BuildContext context) => Column(
         children: [
           PageHeader('Settings', 'Customize how blocking works'),
-          SizedBox(height: 14),
-          _appearance(),
-          _group('Blocking', [
-            _tile(Icons.wifi, 'Block Wi-Fi', 'Cut Wi-Fi for blocked apps', sw: wifi, on: (v) => wifi = v),
-            _tile(Icons.signal_cellular_alt, 'Block mobile data', 'Cut cellular for blocked apps',
-                sw: data, on: (v) => data = v),
-            _tile(Icons.public, 'Block roaming', 'Only while abroad', sw: roam, on: (v) => roam = v),
-          ]),
-          _group('Behavior', [
-            _tile(Icons.power_settings_new, 'Start on boot', 'Resume protection after restart',
-                sw: boot, on: (v) => boot = v),
-            _tile(Icons.notifications_none, 'Show notification', 'Status in the notification bar',
-                sw: notif, on: (v) => notif = v),
-            _tile(Icons.add_box_outlined, 'Block new apps', 'Auto-block newly installed apps',
-                sw: newApps, on: (v) => newApps = v),
-          ]),
-          _group('General', [
-            _tile(Icons.lock_outline, 'App lock', 'PIN or fingerprint', trailing: 'Off'),
-            _tile(Icons.dark_mode_outlined, 'Theme', 'Match the system', trailing: 'Dark'),
-            _tile(Icons.translate, 'Language', '', trailing: 'English'),
-            _tile(Icons.info_outline, 'About', 'Version 1.0', trailing: ''),
-          ]),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 100),
+              children: [
+                _label('Appearance'),
+                Container(
+                  padding: EdgeInsets.all(6),
+                  margin: EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      _mode('Dark', Icons.dark_mode_outlined, true),
+                      SizedBox(width: 6),
+                      _mode('Light', Icons.light_mode_outlined, false),
+                    ],
+                  ),
+                ),
+                _label('Behavior'),
+                _group([
+                  _tile(Icons.power_settings_new, 'Start on boot', 'Resume protection after restart',
+                      sw: st.boot, on: (v) => onPref('boot', v)),
+                  _tile(Icons.apps, 'Show system apps', 'Include system apps in the list',
+                      sw: st.showSystem, on: (v) => onPref('showSystem', v)),
+                ]),
+                _label('General'),
+                _group([
+                  _tile(Icons.vpn_key_outlined, 'VPN permission',
+                      'Needed to block apps (a key icon shows while active)',
+                      trailing: st.vpnGranted ? 'Granted' : 'Request', onTap: onVpn),
+                  _tile(Icons.info_outline, 'About', 'Version 1.0', onTap: () async {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Block Internet Access',
+                      applicationVersion: '1.0',
+                      children: [
+                        Text('Blocks internet access for the apps you choose using a local VPN. '
+                            'No traffic leaves your device and nothing is collected.'),
+                      ],
+                    );
+                  }),
+                ]),
+              ],
+            ),
+          ),
         ],
       );
 
-  Widget _appearance() => Padding(
-        padding: EdgeInsets.only(bottom: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 6),
-              child: Text('APPEARANCE',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                      color: AppColors.accent)),
-            ),
-            Container(
-              padding: EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  _mode('Dark', Icons.dark_mode_outlined, true),
-                  SizedBox(width: 6),
-                  _mode('Light', Icons.light_mode_outlined, false),
-                ],
-              ),
-            ),
-          ],
-        ),
+  Widget _label(String t) => Padding(
+        padding: EdgeInsets.only(left: 4, bottom: 6),
+        child: Text(t.toUpperCase(),
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.accent)),
       );
 
   Widget _mode(String label, IconData icon, bool dark) {
@@ -631,7 +820,10 @@ class _SettingsPageState extends State<SettingsPage> {
     final fg = sel ? AppColors.onAccent : AppColors.muted;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setDark(dark),
+        onTap: () {
+          setDark(dark);
+          BlockService.setPref('dark', dark);
+        },
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
           height: 46,
@@ -652,67 +844,65 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _group(String label, List<Widget> rows) => Padding(
-        padding: EdgeInsets.only(bottom: 16),
+  Widget _group(List<Widget> rows) => Container(
+        margin: EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: AppColors.border),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 6),
-              child: Text(label.toUpperCase(),
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.accent)),
-            ),
-            Box(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (var i = 0; i < rows.length; i++) ...[
-                    if (i > 0) Divider(height: 1, color: AppColors.border),
-                    rows[i],
-                  ],
-                ],
-              ),
-            ),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) Divider(height: 1, color: AppColors.border),
+              rows[i],
+            ],
           ],
         ),
       );
 
   Widget _tile(IconData icon, String title, String sub,
-      {bool? sw, ValueChanged<bool>? on, String? trailing}) {
-    return SizedBox(
-      height: 62,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration:
-                  BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, size: 19, color: Color(0xFFA6CFC6)),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                  if (sub.isNotEmpty)
-                    Text(sub, style: TextStyle(fontSize: 12, color: Color(0xFF7F8E8C))),
-                ],
+      {bool? sw, ValueChanged<bool>? on, String? trailing, Future<dynamic> Function()? onTap}) {
+    return InkWell(
+      onTap: sw == null && onTap != null ? () => onTap() : null,
+      child: SizedBox(
+        height: 64,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration:
+                    BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, size: 19, color: AppColors.accent2),
               ),
-            ),
-            if (sw != null)
-              AppSwitch(value: sw, onChanged: (v) => setState(() => on!(v)))
-            else ...[
-              if (trailing != null && trailing.isNotEmpty)
-                Text(trailing, style: TextStyle(fontSize: 13, color: AppColors.muted)),
-              Icon(Icons.chevron_right, color: AppColors.muted),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    if (sub.isNotEmpty)
+                      Text(sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: AppColors.sub)),
+                  ],
+                ),
+              ),
+              if (sw != null)
+                AppSwitch(value: sw, onChanged: on)
+              else ...[
+                if (trailing != null)
+                  Text(trailing, style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                Icon(Icons.chevron_right, color: AppColors.muted),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -852,39 +1042,168 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
 // ===== home_shell.dart =====
 class HomeShell extends StatefulWidget {
-  HomeShell({super.key});
+  const HomeShell({super.key});
 
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int tab = 0;
-  bool masterOn = true;
-  final apps = <AppItem>[
-    AppItem('Browser Lite', [Color(0xFF7E7FB8), Color(0xFF7FB0BD)]),
-    AppItem('Tunnel VPN', [Color(0xFF7A6A9A), Color(0xFFA98BB8)]),
-    AppItem('Secure Link', [Color(0xFF2F3D5E), Color(0xFF2F3D5E)]),
-    AppItem('PDF Reader', [Color(0xFFA55A52), Color(0xFFA55A52)], blocked: true),
-    AppItem('Muslim Pattern', [Color(0xFF8E6F99), Color(0xFFC98FA3)], blocked: true),
-    AppItem('Anime Rift Game', [Color(0xFF2B2B2E), Color(0xFF2B2B2E)]),
-    AppItem('Watch Anime', [Color(0xFF1A1A1A), Color(0xFF1A1A1A)], blocked: true),
-    AppItem('Remote Desk', [Color(0xFFC26B60), Color(0xFFC26B60)], blocked: true),
-    AppItem('Phone Settings', [Color(0xFF3A4547), Color(0xFF3A4547)], system: true),
-  ];
-
-  void refresh() => setState(() {});
+  bool loading = true;
+  List<AppItem> apps = [];
+  NativeState st = NativeState();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     themeNotifier.addListener(refresh);
+    load();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(refresh);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) reloadState();
+  }
+
+  void refresh() {
+    if (mounted) setState(() {});
+  }
+
+  void say(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m), duration: Duration(seconds: 2)));
+  }
+
+  Future<void> reloadState() async {
+    st = await BlockService.getState();
+    refresh();
+  }
+
+  Future<void> load() async {
+    st = await BlockService.getState();
+    final list = await BlockService.getApps();
+    for (final a in list) {
+      a.blocked = st.blocked.contains(a.package);
+    }
+    apps = list;
+    loading = false;
+    refresh();
+  }
+
+  Future<bool> ensureVpn() async {
+    final ok = await BlockService.prepareVpn();
+    if (!ok) say('VPN permission is required to block apps');
+    await reloadState();
+    return ok;
+  }
+
+  Future<void> toggleApp(AppItem a, bool v) async {
+    if (v && !await ensureVpn()) return;
+    a.blocked = v;
+    refresh();
+    await BlockService.setBlocked(apps.where((x) => x.blocked).map((x) => x.package));
+    await reloadState();
+  }
+
+  Future<void> setMaster(bool v) async {
+    if (v && !await ensureVpn()) return;
+    await BlockService.setMaster(v);
+    await reloadState();
+  }
+
+  int _minsToMorning() {
+    final n = DateTime.now();
+    var t = DateTime(n.year, n.month, n.day, 7);
+    if (!t.isAfter(n)) t = t.add(Duration(days: 1));
+    return t.difference(n).inMinutes;
+  }
+
+  Future<void> timer() async {
+    final opts = <List<Object>>[
+      ['15 minutes', 15],
+      ['1 hour', 60],
+      ['4 hours', 240],
+      ['Until tomorrow morning', _minsToMorning()],
+    ];
+    final pick = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Block selected apps for\u2026',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            for (final o in opts)
+              ListTile(
+                leading: Icon(Icons.timer_outlined, color: AppColors.accent),
+                title: Text(o[0] as String),
+                onTap: () => Navigator.pop(ctx, o[1] as int),
+              ),
+            if (st.timedActive)
+              ListTile(
+                leading: Icon(Icons.close, color: AppColors.accent),
+                title: Text('Cancel timed block'),
+                onTap: () => Navigator.pop(ctx, -1),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null) return;
+    if (pick < 0) {
+      await BlockService.timedBlock(0);
+      await reloadState();
+      say('Timed block cancelled');
+      return;
+    }
+    if (!apps.any((a) => a.blocked)) {
+      say('Select the apps to block first');
+      return;
+    }
+    if (!await ensureVpn()) return;
+    await BlockService.timedBlock(pick);
+    await reloadState();
+    say('Selected apps are blocked for ${o0(pick)}');
+  }
+
+  String o0(int m) => m < 60 ? '$m minutes' : '${(m / 60).toStringAsFixed(m % 60 == 0 ? 0 : 1)} hours';
+
+  Future<bool> schedule(bool on, int s, int e, int d) async {
+    if (on && !await ensureVpn()) return false;
+    await BlockService.setSchedule(on, s, e, d);
+    await reloadState();
+    if (!on) {
+      say('Schedule turned off');
+    } else if (!apps.any((a) => a.blocked)) {
+      say('Schedule saved. Select the apps to block');
+    } else {
+      say('Schedule saved');
+    }
+    return true;
+  }
+
+  Future<void> setPref(String key, bool v) async {
+    await BlockService.setPref(key, v);
+    await reloadState();
   }
 
   @override
@@ -893,29 +1212,25 @@ class _HomeShellState extends State<HomeShell> {
       AppsPage(
         title: 'Block Internet Access',
         apps: apps,
+        st: st,
         onlyBlocked: false,
-        masterOn: masterOn,
-        onMaster: (v) {
-          masterOn = v;
-          BlockService.setMaster(v);
-          refresh();
-        },
-        onChanged: refresh,
+        onToggle: toggleApp,
+        onMaster: setMaster,
+        onTimer: timer,
+        onInfo: (a) => BlockService.openAppInfo(a.package),
       ),
       AppsPage(
         title: 'Blocked Apps',
         apps: apps,
+        st: st,
         onlyBlocked: true,
-        masterOn: masterOn,
-        onMaster: (v) {
-          masterOn = v;
-          BlockService.setMaster(v);
-          refresh();
-        },
-        onChanged: refresh,
+        onToggle: toggleApp,
+        onMaster: setMaster,
+        onTimer: timer,
+        onInfo: (a) => BlockService.openAppInfo(a.package),
       ),
-      SchedulePage(),
-      SettingsPage(),
+      SchedulePage(st: st, onSchedule: schedule),
+      SettingsPage(st: st, onPref: setPref, onVpn: ensureVpn),
     ];
 
     return Scaffold(
@@ -933,7 +1248,12 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ),
           ),
-          IndexedStack(index: tab, children: pages),
+          SafeArea(
+            bottom: false,
+            child: loading
+                ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+                : IndexedStack(index: tab, children: pages),
+          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -948,7 +1268,7 @@ class _HomeShellState extends State<HomeShell> {
           child: NavigationBar(
             height: 70,
             backgroundColor: Colors.transparent,
-            indicatorColor: Color(0xFF2F4A47),
+            indicatorColor: AppColors.navActive,
             selectedIndex: tab,
             onDestinationSelected: (i) => setState(() => tab = i),
             destinations: [
@@ -965,7 +1285,12 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 // ===== main.dart =====
-void main() => runApp(const BlockerApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final st = await BlockService.getState();
+  setDark(st.dark);
+  runApp(const BlockerApp());
+}
 
 class BlockerApp extends StatelessWidget {
   const BlockerApp({super.key});
@@ -981,3 +1306,6 @@ class BlockerApp extends StatelessWidget {
         ),
       );
 }
+
+// Alias so the default test generated by `flutter create` (which uses MyApp) still compiles.
+typedef MyApp = BlockerApp;

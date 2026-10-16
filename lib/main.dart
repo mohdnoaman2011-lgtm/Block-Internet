@@ -18,3 +18,4 @@ class BlockerApp extends StatelessWidget {
         ),
       );
 }
+typedef MyApp = BlockerApp;

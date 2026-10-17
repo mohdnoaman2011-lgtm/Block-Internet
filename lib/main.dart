@@ -133,18 +133,22 @@ class BlockService {
     return m == null ? NativeState() : NativeState.fromMap(m);
   }
 
-  /// Fast: names + packages only (icons are loaded later with [getIcons]).
-  static Future<List<AppItem>> getApps() async {
-    final l = await _ch.invokeMethod<List>('getApps').timeout(Duration(seconds: 30)) ?? [];
-    return l.map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
-      return AppItem(
-        name: m['name'] as String,
-        package: m['package'] as String,
-        system: m['system'] as bool? ?? false,
-      );
-    }).toList();
-  }
+  static List<AppItem> _parse(List l) => l.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return AppItem(
+          name: m['name'] as String,
+          package: m['package'] as String,
+          system: m['system'] as bool? ?? false,
+        );
+      }).toList();
+
+  /// Instant: the list saved by the previous run (empty on the very first launch).
+  static Future<List<AppItem>> getCachedApps() async =>
+      _parse(await _call<List>('getCachedApps') ?? []);
+
+  /// Fresh list from the system: names + packages only (icons come later).
+  static Future<List<AppItem>> getApps() async =>
+      _parse(await _ch.invokeMethod<List>('getApps').timeout(Duration(seconds: 30)) ?? []);
 
   static Future<Map<String, Uint8List>> getIcons(List<String> packages) async {
     final m = await _call<Map>('getIcons', {'packages': packages});
@@ -943,7 +947,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: Duration(milliseconds: 2600),
+    duration: Duration(milliseconds: 1600),
   );
   late final Animation<double> _scale = CurvedAnimation(
     parent: _c,
@@ -1114,37 +1118,59 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   String? loadError;
+  bool _iconsBusy = false;
+
+  void _setApps(List<AppItem> list) {
+    final old = {for (final a in apps) a.package: a.icon};
+    for (final a in list) {
+      a.blocked = st.blocked.contains(a.package);
+      a.icon = old[a.package];
+    }
+    apps = list;
+  }
 
   Future<void> load() async {
-    loading = true;
     loadError = null;
+    if (apps.isEmpty) loading = true;
     refresh();
-    try {
-      st = await BlockService.getState();
-      final list = await BlockService.getApps();
-      for (final a in list) {
-        a.blocked = st.blocked.contains(a.package);
+    st = await BlockService.getState();
+    // 1) instant: the list saved by the previous run
+    if (apps.isEmpty) {
+      final cached = await BlockService.getCachedApps();
+      if (cached.isNotEmpty) {
+        _setApps(cached);
+        loading = false;
+        refresh();
       }
-      apps = list;
+    }
+    // 2) fresh list from the system
+    try {
+      _setApps(await BlockService.getApps());
     } catch (e) {
-      loadError = e.toString();
+      if (apps.isEmpty) loadError = e.toString();
     }
     loading = false;
     refresh();
-    if (loadError == null) loadIcons();
+    loadIcons();
   }
 
-  /// Icons arrive in small batches so the list shows immediately.
+  /// Icons arrive in batches so the list is usable immediately.
   Future<void> loadIcons() async {
-    final todo = apps.map((a) => a.package).toList();
-    for (var i = 0; i < todo.length && mounted; i += 12) {
-      final end = i + 12 > todo.length ? todo.length : i + 12;
-      final icons = await BlockService.getIcons(todo.sublist(i, end));
-      for (final a in apps) {
-        final ic = icons[a.package];
-        if (ic != null) a.icon = ic;
+    if (_iconsBusy) return;
+    _iconsBusy = true;
+    try {
+      final todo = apps.where((a) => a.icon == null).map((a) => a.package).toList();
+      for (var i = 0; i < todo.length && mounted; i += 30) {
+        final end = i + 30 > todo.length ? todo.length : i + 30;
+        final icons = await BlockService.getIcons(todo.sublist(i, end));
+        for (final a in apps) {
+          final ic = icons[a.package];
+          if (ic != null) a.icon = ic;
+        }
+        refresh();
       }
-      refresh();
+    } finally {
+      _iconsBusy = false;
     }
   }
 

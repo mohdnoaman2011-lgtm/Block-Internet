@@ -374,6 +374,9 @@ class AppsPage extends StatefulWidget {
     required this.onToggle,
     required this.onMaster,
     required this.onTimer,
+    required this.onQuick15,
+    required this.onGoSchedule,
+    required this.onRefresh,
     required this.onInfo,
   });
   final String title;
@@ -383,6 +386,9 @@ class AppsPage extends StatefulWidget {
   final void Function(AppItem, bool) onToggle;
   final ValueChanged<bool> onMaster;
   final VoidCallback onTimer;
+  final VoidCallback onQuick15;
+  final VoidCallback onGoSchedule;
+  final VoidCallback onRefresh;
   final ValueChanged<AppItem> onInfo;
 
   @override
@@ -393,14 +399,150 @@ class _AppsPageState extends State<AppsPage> {
   String query = '';
   int chip = 0;
   bool blockedFirst = false;
+  final FocusNode _search = FocusNode();
   static const chips = ['All', 'Blocked', 'Allowed', 'System'];
 
-  String subtitle(int n) {
-    if (widget.onlyBlocked) return '$n apps in the block list';
-    if (widget.st.running) return 'Protection on \u00b7 $n apps offline';
-    if (n == 0) return 'Select apps to block';
-    return 'Protection off \u00b7 $n apps selected';
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening');
+  }
+
+  Widget _topBar() => Padding(
+        padding: EdgeInsets.fromLTRB(20, 14, 14, 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_greeting(),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.muted)),
+                  Text('Block Internet',
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              onSelected: (v) {
+                if (v == 'refresh') widget.onRefresh();
+                if (v == 'about') {
+                  showAboutDialog(
+                    context: context,
+                    applicationName: 'Block Internet Access',
+                    applicationVersion: '1.0',
+                    children: [
+                      Text('Blocks internet access for the apps you choose using a local VPN. '
+                          'No traffic leaves your device and nothing is collected.'),
+                    ],
+                  );
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'refresh', child: Text('Refresh apps')),
+                PopupMenuItem(value: 'about', child: Text('About')),
+              ],
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(16)),
+                child: Icon(Icons.more_vert, size: 22),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _pill(String label, IconData icon, VoidCallback onTap, {bool strong = false}) {
+    final fg = strong ? AppColors.onAccent : null;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: strong ? AppColors.accent : AppColors.tonal,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              SizedBox(width: 7),
+              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _hero(int n) {
+    final on = widget.st.running;
+    final sub = on
+        ? '$n of ${widget.apps.length} apps are offline'
+        : (n == 0 ? 'Select apps to block' : 'Protection off \u00b7 $n selected');
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.accent.withAlpha(48), Colors.transparent],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.accent.withAlpha(on ? 200 : 90)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(19)),
+                child: Icon(on ? Icons.shield : Icons.shield_outlined, size: 28, color: AppColors.onAccent),
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(on ? 'Protection on' : 'Protection off',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+                    SizedBox(height: 2),
+                    Text(sub, style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
+            ],
+          ),
+          SizedBox(height: 14),
+          Row(
+            children: [
+              _pill('15 min', Icons.timer_outlined, widget.onQuick15, strong: true),
+              SizedBox(width: 8),
+              _pill('Schedule', Icons.event_outlined, widget.onGoSchedule),
+              SizedBox(width: 8),
+              _pill('Add apps', Icons.add, () => _search.requestFocus()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _subtitle(int n) =>
+      widget.st.running ? '$n apps are offline' : '$n apps in the block list';
 
   @override
   Widget build(BuildContext context) {
@@ -423,75 +565,79 @@ class _AppsPageState extends State<AppsPage> {
       items.sort((a, b) => (b.blocked ? 1 : 0) - (a.blocked ? 1 : 0));
     }
 
-    return Column(
-      children: [
-        PageHeader(
-          widget.title,
-          subtitle(n),
-          actions: [
-            IconButton.filledTonal(
-              onPressed: widget.onTimer,
-              icon: Icon(Icons.timer_outlined),
-              style: IconButton.styleFrom(backgroundColor: AppColors.tonal),
-              tooltip: 'Timed block',
-            ),
-            SizedBox(width: 4),
-            AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
-          ],
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(20, 14, 20, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: (v) => setState(() => query = v),
-                  decoration: InputDecoration(
-                    hintText: 'Search apps\u2026',
-                    hintStyle: TextStyle(color: AppColors.muted),
-                    prefixIcon: Icon(Icons.search, color: AppColors.accent),
-                    filled: true,
-                    fillColor: AppColors.card,
-                    contentPadding: EdgeInsets.symmetric(vertical: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                  ),
-                ),
+    final header = widget.onlyBlocked
+        ? PageHeader(
+            widget.title,
+            _subtitle(n),
+            actions: [
+              IconButton.filledTonal(
+                onPressed: widget.onTimer,
+                icon: Icon(Icons.timer_outlined),
+                style: IconButton.styleFrom(backgroundColor: AppColors.tonal),
+                tooltip: 'Timed block',
               ),
-              SizedBox(width: 10),
-              PopupMenuButton<String>(
-                tooltip: 'Sort',
-                onSelected: (v) => setState(() => blockedFirst = v == 'blocked'),
-                itemBuilder: (_) => [
-                  CheckedPopupMenuItem(value: 'az', checked: !blockedFirst, child: Text('Sort A\u2013Z')),
-                  CheckedPopupMenuItem(value: 'blocked', checked: blockedFirst, child: Text('Blocked first')),
-                ],
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(Icons.filter_list_rounded),
-                ),
-              ),
+              SizedBox(width: 4),
+              AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
             ],
+          )
+        : Column(children: [_topBar(), _hero(n)]);
+
+    final searchRow = Padding(
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              focusNode: _search,
+              onChanged: (v) => setState(() => query = v),
+              decoration: InputDecoration(
+                hintText: 'Search apps\u2026',
+                hintStyle: TextStyle(color: AppColors.muted),
+                prefixIcon: Icon(Icons.search, color: AppColors.accent),
+                filled: true,
+                fillColor: AppColors.card,
+                contentPadding: EdgeInsets.symmetric(vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
           ),
-        ),
-        if (!widget.onlyBlocked)
-          SizedBox(
-            height: 56,
+          SizedBox(width: 10),
+          PopupMenuButton<String>(
+            tooltip: 'Sort',
+            onSelected: (v) => setState(() => blockedFirst = v == 'blocked'),
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(value: 'az', checked: !blockedFirst, child: Text('Sort A\u2013Z')),
+              CheckedPopupMenuItem(value: 'blocked', checked: blockedFirst, child: Text('Blocked first')),
+            ],
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Icon(Icons.filter_list_rounded),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final chipRow = widget.onlyBlocked
+        ? SizedBox(height: 12)
+        : SizedBox(
+            height: 58,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: chips.length,
               separatorBuilder: (_, __) => SizedBox(width: 8),
               itemBuilder: (_, i) => ChoiceChip(
@@ -500,40 +646,53 @@ class _AppsPageState extends State<AppsPage> {
                 showCheckmark: false,
                 selectedColor: AppColors.accent,
                 backgroundColor: AppColors.card,
-                side: BorderSide(color: AppColors.border),
+                side: BorderSide(color: chip == i ? AppColors.accent : AppColors.border),
                 labelStyle: TextStyle(
                   color: chip == i ? AppColors.onAccent : AppColors.chipText,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: chip == i ? FontWeight.w600 : FontWeight.w500,
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 onSelected: (_) => setState(() => chip = i),
               ),
             ),
+          );
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: header),
+        SliverToBoxAdapter(child: searchRow),
+        SliverToBoxAdapter(child: chipRow),
+        if (items.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: Center(
+                child: Text(
+                  widget.apps.isEmpty ? 'No apps found on this device' : 'No matching apps',
+                  style: TextStyle(color: AppColors.muted),
+                ),
+              ),
+            ),
           )
         else
-          SizedBox(height: 10),
-        Expanded(
-          child: items.isEmpty
-              ? Center(
-                  child: Text(
-                    widget.apps.isEmpty ? 'No apps found on this device' : 'No matching apps',
-                    style: TextStyle(color: AppColors.muted),
-                  ),
-                )
-              : ListView.builder(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  itemCount: items.length,
-                  itemBuilder: (_, i) {
-                    final app = items[i];
-                    return AppCard(
-                      key: ValueKey(app.package),
-                      app: app,
-                      onChanged: (v) => widget.onToggle(app, v),
-                      onInfo: () => widget.onInfo(app),
-                    );
-                  },
-                ),
-        ),
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, i) {
+                  final app = items[i];
+                  return AppCard(
+                    key: ValueKey(app.package),
+                    app: app,
+                    onChanged: (v) => widget.onToggle(app, v),
+                    onInfo: () => widget.onInfo(app),
+                  );
+                },
+                childCount: items.length,
+              ),
+            ),
+          ),
+        SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
@@ -1067,6 +1226,112 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       );
 }
 
+// ===== screens/permission_page.dart =====
+/// Friendly explanation shown before Android's own VPN confirmation dialog.
+class PermissionPage extends StatelessWidget {
+  const PermissionPage({super.key});
+
+  Widget _point(IconData icon, String text) => Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 19, color: AppColors.accent),
+            ),
+            SizedBox(width: 14),
+            Expanded(child: Text(text, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500))),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0.9, -1.1),
+              radius: 1.1,
+              colors: [AppColors.accent.withAlpha(46), Colors.transparent],
+            ),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(28, 56, 28, 24),
+              child: Column(
+                children: [
+                  Container(
+                    width: 168,
+                    height: 168,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [AppColors.accent.withAlpha(50), Colors.transparent]),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 104,
+                        height: 104,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(32),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [AppColors.card, AppColors.tonal],
+                          ),
+                          border: Border.all(color: AppColors.accent),
+                        ),
+                        child: Icon(Icons.shield_outlined, size: 52, color: AppColors.accent),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 22),
+                  Text('Allow VPN connection',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.4)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Block Internet uses a local VPN to cut internet for the apps you choose. '
+                    'No data leaves your device.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14.5, height: 1.6, color: AppColors.muted),
+                  ),
+                  SizedBox(height: 22),
+                  _point(Icons.check, 'Only the apps you pick lose internet'),
+                  _point(Icons.lock_outline, 'Everything stays on your phone'),
+                  _point(Icons.check, 'You can turn it off anytime'),
+                  SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(29)),
+                        textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('CONTINUE'),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Not now', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                  ),
+                  Text('Android will ask you to confirm',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.sub)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 // ===== home_shell.dart =====
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -1175,6 +1440,16 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   Future<bool> ensureVpn() async {
+    await reloadState();
+    if (!st.vpnGranted && mounted) {
+      final go = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => PermissionPage(), fullscreenDialog: true),
+      );
+      if (go != true) {
+        say('VPN permission is required to block apps');
+        return false;
+      }
+    }
     final ok = await BlockService.prepareVpn();
     if (!ok) say('VPN permission is required to block apps');
     await reloadState();
@@ -1221,6 +1496,17 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     return t.difference(n).inMinutes;
   }
 
+  Future<void> startTimed(int minutes) async {
+    if (!apps.any((a) => a.blocked)) {
+      say('Select the apps to block first');
+      return;
+    }
+    if (!await ensureVpn()) return;
+    await BlockService.timedBlock(minutes);
+    await verifyRunning();
+    say('Selected apps are blocked for ${o0(minutes)}');
+  }
+
   Future<void> timer() async {
     final opts = <List<Object>>[
       ['15 minutes', 15],
@@ -1228,37 +1514,99 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ['4 hours', 240],
       ['Until tomorrow morning', _minsToMorning()],
     ];
+    final count = apps.where((a) => a.blocked).length;
     final pick = await showModalBottomSheet<int>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Block selected apps for\u2026',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      builder: (ctx) {
+        var sel = 1;
+        return StatefulBuilder(
+          builder: (ctx, setS) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: AppColors.switchOutline, borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  Text('Block selected apps for\u2026',
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                  SizedBox(height: 4),
+                  Text('$count apps will lose internet until the timer ends.',
+                      style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                  SizedBox(height: 16),
+                  for (var i = 0; i < opts.length; i++)
+                    GestureDetector(
+                      onTap: () => setS(() => sel = i),
+                      child: Container(
+                        height: 56,
+                        margin: EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: sel == i ? AppColors.tonal : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: sel == i ? AppColors.accent : AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.timer_outlined, color: AppColors.accent),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Text(opts[i][0] as String,
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: sel == i ? FontWeight.w600 : FontWeight.w500)),
+                            ),
+                            Icon(sel == i ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                color: sel == i ? AppColors.accent : AppColors.switchOutline),
+                          ],
+                        ),
+                      ),
+                    ),
+                  SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, opts[sel][1] as int),
+                      child: Text('START TIMER'),
+                    ),
+                  ),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                    ),
+                  ),
+                  if (st.timedActive)
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx, -1),
+                        child: Text('Cancel timed block'),
+                      ),
+                    ),
+                ],
               ),
             ),
-            for (final o in opts)
-              ListTile(
-                leading: Icon(Icons.timer_outlined, color: AppColors.accent),
-                title: Text(o[0] as String),
-                onTap: () => Navigator.pop(ctx, o[1] as int),
-              ),
-            if (st.timedActive)
-              ListTile(
-                leading: Icon(Icons.close, color: AppColors.accent),
-                title: Text('Cancel timed block'),
-                onTap: () => Navigator.pop(ctx, -1),
-              ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
     if (pick == null) return;
     if (pick < 0) {
@@ -1267,14 +1615,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       say('Timed block cancelled');
       return;
     }
-    if (!apps.any((a) => a.blocked)) {
-      say('Select the apps to block first');
-      return;
-    }
-    if (!await ensureVpn()) return;
-    await BlockService.timedBlock(pick);
-    await reloadState();
-    say('Selected apps are blocked for ${o0(pick)}');
+    await startTimed(pick);
   }
 
   String o0(int m) => m < 60 ? '$m minutes' : '${(m / 60).toStringAsFixed(m % 60 == 0 ? 0 : 1)} hours';
@@ -1309,6 +1650,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         onToggle: toggleApp,
         onMaster: setMaster,
         onTimer: timer,
+        onQuick15: () => startTimed(15),
+        onGoSchedule: () => setState(() => tab = 2),
+        onRefresh: load,
         onInfo: (a) => BlockService.openAppInfo(a.package),
       ),
       AppsPage(
@@ -1319,6 +1663,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         onToggle: toggleApp,
         onMaster: setMaster,
         onTimer: timer,
+        onQuick15: () => startTimed(15),
+        onGoSchedule: () => setState(() => tab = 2),
+        onRefresh: load,
         onInfo: (a) => BlockService.openAppInfo(a.package),
       ),
       SchedulePage(st: st, onSchedule: schedule),

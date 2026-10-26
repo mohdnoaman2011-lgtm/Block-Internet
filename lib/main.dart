@@ -1,6 +1,7 @@
-// Block Internet Access: complete Flutter app in ONE file (Material 3, dark/light).
+// Block Internet Access: complete Flutter app in ONE file (Material 3, Indigo design, dark/light).
 // Put this as lib/main.dart. Requires Flutter 3.22+ and the native Android code from main.yml.
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,8 +25,9 @@ class AppColors {
   static int accentIndex = 0;
   static Color _p(int d, int l) => Color(dark ? d : l);
 
-  static const accentNames = ['Sage', 'Ocean', 'Lavender', 'Sand', 'Rose'];
+  static const accentNames = ['Indigo', 'Sage', 'Ocean', 'Lavender', 'Sand', 'Rose'];
   static const _accents = [
+    [0xFF8B7CFF, 0xFF5B4BD6],
     [0xFF8FBFB5, 0xFF3F7D72],
     [0xFF8BB8E8, 0xFF2F6EA8],
     [0xFFB4A7E6, 0xFF6B58B8],
@@ -34,26 +36,27 @@ class AppColors {
   ];
   static Color accentFor(int i, bool d) => Color(_accents[i][d ? 0 : 1]);
 
-  static Color get bg => _p(0xFF12161A, 0xFFF3F6F5);
-  static Color get card => _p(0xFF161A1B, 0xFFFFFFFF);
-  static Color get border => _p(0xFF242B2C, 0xFFDCE4E2);
-  static Color get muted => _p(0xFF8FA3A1, 0xFF5F7270);
+  static Color get bg => _p(0xFF0B0D1A, 0xFFF4F5FD);
+  static Color get card => _p(0xFF14172B, 0xFFFFFFFF);
+  static Color get border => _p(0xFF23274A, 0xFFDDE0F3);
+  static Color get muted => _p(0xFF8B90B3, 0xFF6A6F93);
   static Color get accent => accentFor(accentIndex, dark);
+  static Color get coral => _p(0xFFFF8A7A, 0xFFD9604F);
   static Color get accent2 => dark ? Color.lerp(accent, Colors.white, 0.22)! : accent;
-  static Color get onAccent => _p(0xFF0F1A18, 0xFFFFFFFF);
-  static Color get tonal => _p(0xFF212A2B, 0xFFE3EEEB);
-  static Color get chipText => _p(0xFFB6C4C2, 0xFF5F7270);
-  static Color get sub => _p(0xFF7F8E8C, 0xFF6B7C7A);
-  static Color get hint => _p(0xFF6F7F7D, 0xFF7F908E);
-  static Color get track => _p(0xFF232A2B, 0xFFE3EEEB);
+  static Color get onAccent => accent.computeLuminance() > 0.45 ? Color(0xFF0E0B2B) : Colors.white;
+  static Color get tonal => _p(0xFF1C2040, 0xFFE8EAFB);
+  static Color get chipText => _p(0xFFB4B8DA, 0xFF5A5F86);
+  static Color get sub => _p(0xFF7E83A8, 0xFF6F7498);
+  static Color get hint => _p(0xFF6B7096, 0xFF8A8FB0);
+  static Color get track => _p(0xFF1C2040, 0xFFE8EAFB);
   static Color get navActive => Color.lerp(bg, accent, dark ? 0.28 : 0.22)!;
-  static Color get navBg => _p(0xE01B2627, 0xF0FFFFFF);
-  static Color get navBorder => _p(0x17FFFFFF, 0xFFDCE4E2);
-  static Color get knobOff => _p(0xFF8A9796, 0xFF7F908E);
-  static Color get switchOff => _p(0xFF1B2021, 0xFFEEF3F2);
-  static Color get switchOutline => _p(0xFF5F6B6A, 0xFF8FA09E);
-  static Color get logoA => _p(0xFF26363A, 0xFFFFFFFF);
-  static Color get logoB => _p(0xFF182523, 0xFFE3EEEB);
+  static Color get navBg => _p(0xE614172B, 0xF0FFFFFF);
+  static Color get navBorder => _p(0x12FFFFFF, 0xFFDDE0F3);
+  static Color get knobOff => _p(0xFF5C628F, 0xFF9AA0C4);
+  static Color get switchOff => _p(0xFF1C2040, 0xFFEEF0FC);
+  static Color get switchOutline => _p(0xFF3A4075, 0xFF9AA0C4);
+  static Color get logoA => _p(0xFF1B1F45, 0xFFFFFFFF);
+  static Color get logoB => _p(0xFF0F1230, 0xFFE8EAFB);
 }
 
 ThemeData buildTheme(bool dark) => ThemeData(
@@ -76,12 +79,14 @@ class AppItem {
     this.icon,
     this.system = false,
     this.blocked = false,
+    this.category = 'Other',
   });
 
   final String name;
   final String package;
   Uint8List? icon;
   final bool system;
+  final String category;
   bool blocked;
 
   String get letter => name.isEmpty ? '?' : name[0].toUpperCase();
@@ -160,6 +165,7 @@ class BlockService {
           name: m['name'] as String,
           package: m['package'] as String,
           system: m['system'] as bool? ?? false,
+          category: m['cat'] as String? ?? 'Other',
         );
       }).toList();
 
@@ -215,17 +221,14 @@ class AppSwitch extends StatelessWidget {
     return Switch(
       value: value,
       onChanged: onChanged,
-      thumbIcon: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? Icon(Icons.check, color: AppColors.accent) : null,
-      ),
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.onAccent : Color(0xFF8A9796),
+        (s) => sel(s) ? Colors.white : AppColors.knobOff,
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.accent : Color(0xFF1B2021),
+        (s) => sel(s) ? AppColors.accent : AppColors.switchOff,
       ),
       trackOutlineColor: WidgetStateProperty.resolveWith(
-        (s) => sel(s) ? AppColors.accent : Color(0xFF5F6B6A),
+        (s) => sel(s) ? AppColors.accent : AppColors.switchOutline,
       ),
     );
   }
@@ -283,8 +286,15 @@ class Box extends StatelessWidget {
 
 // ===== widgets/app_card.dart =====
 class AppCard extends StatefulWidget {
-  const AppCard({super.key, required this.app, required this.onChanged, required this.onInfo});
+  const AppCard({
+    super.key,
+    required this.app,
+    required this.running,
+    required this.onChanged,
+    required this.onInfo,
+  });
   final AppItem app;
+  final bool running;
   final ValueChanged<bool> onChanged;
   final VoidCallback onInfo;
 
@@ -296,7 +306,7 @@ class _AppCardState extends State<AppCard> {
   bool open = false;
 
   Widget _icon(AppItem a) => ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: a.icon != null
             ? Image.memory(a.icon!, width: 46, height: 46, gaplessPlayback: true)
             : Container(
@@ -314,6 +324,7 @@ class _AppCardState extends State<AppCard> {
   Widget build(BuildContext context) {
     final a = widget.app;
     final on = a.blocked;
+    final sub = on ? (widget.running ? 'Blocked \u00b7 always' : 'Selected \u00b7 protection paused') : 'Allowed';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => open = !open),
@@ -322,52 +333,63 @@ class _AppCardState extends State<AppCard> {
         alignment: Alignment.topCenter,
         child: Container(
           margin: EdgeInsets.only(bottom: 8),
-          padding: EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: EdgeInsets.fromLTRB(10, 11, 14, 11),
           decoration: BoxDecoration(
             color: AppColors.card,
-            gradient: on
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.accent.withAlpha(40), AppColors.accent.withAlpha(10)],
-                  )
-                : null,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: on ? AppColors.accent.withAlpha(96) : AppColors.border),
+            border: Border.all(color: on ? AppColors.accent : AppColors.border),
           ),
           child: Column(
             children: [
               Row(
                 children: [
                   _icon(a),
-                  SizedBox(width: 13),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(a.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
-                        Text(on ? 'Blocked \u00b7 Wi-Fi & data' : 'Allowed',
-                            style: TextStyle(
-                                fontSize: 12, color: on ? AppColors.accent2 : AppColors.sub)),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(a.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                            ),
+                            if (on)
+                              Container(
+                                margin: EdgeInsets.only(left: 8),
+                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.coral.withAlpha(40),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('BLOCKED',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.6,
+                                        color: AppColors.coral)),
+                              ),
+                          ],
+                        ),
+                        Text(sub, style: TextStyle(fontSize: 12, color: AppColors.muted)),
                       ],
                     ),
                   ),
-                  Icon(open ? Icons.expand_less : Icons.expand_more, color: AppColors.muted),
-                  SizedBox(width: 6),
+                  Icon(open ? Icons.expand_less : Icons.expand_more, color: AppColors.muted, size: 22),
+                  SizedBox(width: 4),
                   AppSwitch(value: on, onChanged: widget.onChanged),
                 ],
               ),
               if (open)
                 Padding(
-                  padding: EdgeInsets.only(top: 12),
+                  padding: EdgeInsets.only(top: 12, left: 2),
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(a.package,
-                            style: TextStyle(fontSize: 12, color: AppColors.hint)),
+                        child: Text(a.package, style: TextStyle(fontSize: 12, color: AppColors.hint)),
                       ),
                       OutlinedButton.icon(
                         onPressed: widget.onInfo,
@@ -389,26 +411,16 @@ class _AppCardState extends State<AppCard> {
 class AppsPage extends StatefulWidget {
   const AppsPage({
     super.key,
-    required this.title,
     required this.apps,
     required this.st,
-    required this.onlyBlocked,
     required this.onToggle,
-    required this.onMaster,
-    required this.onTimer,
-    required this.onGoSchedule,
-    required this.onRefresh,
+    required this.onGroup,
     required this.onInfo,
   });
-  final String title;
   final List<AppItem> apps;
   final NativeState st;
-  final bool onlyBlocked;
   final void Function(AppItem, bool) onToggle;
-  final ValueChanged<bool> onMaster;
-  final VoidCallback onTimer;
-  final VoidCallback onGoSchedule;
-  final VoidCallback onRefresh;
+  final void Function(List<AppItem>, bool) onGroup;
   final ValueChanged<AppItem> onInfo;
 
   @override
@@ -417,271 +429,112 @@ class AppsPage extends StatefulWidget {
 
 class _AppsPageState extends State<AppsPage> {
   String query = '';
-  int chip = 0;
-  bool blockedFirst = false;
-  final FocusNode _search = FocusNode();
-  static const chips = ['All', 'Blocked', 'Allowed', 'System'];
+  int seg = 0;
+  static const segs = ['All', 'Blocked', 'Allowed'];
+  static const order = ['Social', 'Games', 'Media', 'News', 'Work', 'Maps', 'Other'];
 
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
+  Widget _search() => Padding(
+        padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+        child: TextField(
+          onChanged: (v) => setState(() => query = v),
+          decoration: InputDecoration(
+            hintText: 'Search ${widget.apps.length} apps\u2026',
+            hintStyle: TextStyle(color: AppColors.muted),
+            prefixIcon: Icon(Icons.search, color: AppColors.muted),
+            filled: true,
+            fillColor: AppColors.card,
+            contentPadding: EdgeInsets.symmetric(vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(27),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(27),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+          ),
+        ),
+      );
 
-  String _greeting() {
-    final h = DateTime.now().hour;
-    return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening');
-  }
-
-  Widget _topBar() => Padding(
-        padding: EdgeInsets.fromLTRB(20, 14, 14, 14),
+  Widget _segments() => Container(
+        margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: AppColors.border),
+        ),
         child: Row(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_greeting(),
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.muted)),
-                  Text('Block Internet',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
-                ],
+            for (var i = 0; i < segs.length; i++)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => seg = i),
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 180),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: seg == i ? AppColors.accent : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(segs[i],
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: seg == i ? AppColors.onAccent : AppColors.muted)),
+                  ),
+                ),
               ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'More',
-              onSelected: (v) {
-                if (v == 'timer') widget.onTimer();
-                if (v == 'refresh') widget.onRefresh();
-                if (v == 'about') {
-                  showAboutDialog(
-                    context: context,
-                    applicationName: 'Block Internet Access',
-                    applicationVersion: '1.0',
-                    children: [
-                      Text('Blocks internet access for the apps you choose using a local VPN. '
-                          'No traffic leaves your device and nothing is collected.'),
-                    ],
-                  );
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'timer', child: Text('Timed block\u2026')),
-                PopupMenuItem(value: 'refresh', child: Text('Refresh apps')),
-                PopupMenuItem(value: 'about', child: Text('About')),
-              ],
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: AppColors.tonal, borderRadius: BorderRadius.circular(16)),
-                child: Icon(Icons.more_vert, size: 22),
-              ),
-            ),
           ],
         ),
       );
 
-  Widget _pill(String label, IconData icon, VoidCallback onTap, {bool strong = false}) {
-    final fg = strong ? AppColors.onAccent : null;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 40,
-          decoration: BoxDecoration(
-            color: strong ? AppColors.accent : AppColors.tonal,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: fg),
-              SizedBox(width: 7),
-              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _hero(int n) {
-    final on = widget.st.running;
-    final sub = on
-        ? '$n of ${widget.apps.length} apps are offline'
-        : (n == 0 ? 'Select apps to block' : 'Protection off \u00b7 $n selected');
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.accent.withAlpha(48), Colors.transparent],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: AppColors.accent.withAlpha(on ? 200 : 90)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(19)),
-                child: Icon(on ? Icons.shield : Icons.shield_outlined, size: 28, color: AppColors.onAccent),
-              ),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(on ? 'Protection on' : 'Protection off',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
-                    SizedBox(height: 2),
-                    Text(sub, style: TextStyle(fontSize: 13, color: AppColors.muted)),
-                  ],
-                ),
-              ),
-              AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
-            ],
-          ),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              _pill('Schedule', Icons.event_outlined, widget.onGoSchedule, strong: true),
-              SizedBox(width: 8),
-              _pill('Add apps', Icons.add, () => _search.requestFocus()),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _subtitle(int n) =>
-      widget.st.running ? '$n apps are offline' : '$n apps in the block list';
-
-  @override
-  Widget build(BuildContext context) {
-    final n = widget.apps.where((a) => a.blocked).length;
-    var items = widget.apps
-        .where((a) => a.name.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-    if (widget.onlyBlocked) {
-      items = items.where((a) => a.blocked).toList();
-    } else if (chip == 1) {
-      items = items.where((a) => a.blocked).toList();
-    } else if (chip == 2) {
-      items = items.where((a) => !a.blocked).toList();
-    } else if (chip == 3) {
-      items = items.where((a) => a.system).toList();
-    } else if (!widget.st.showSystem) {
-      items = items.where((a) => !a.system || a.blocked).toList();
-    }
-    if (blockedFirst) {
-      items.sort((a, b) => (b.blocked ? 1 : 0) - (a.blocked ? 1 : 0));
-    }
-
-    final header = widget.onlyBlocked
-        ? PageHeader(
-            widget.title,
-            _subtitle(n),
-            actions: [
-              IconButton.filledTonal(
-                onPressed: widget.onTimer,
-                icon: Icon(Icons.timer_outlined),
-                style: IconButton.styleFrom(backgroundColor: AppColors.tonal),
-                tooltip: 'Timed block',
-              ),
-              SizedBox(width: 4),
-              AppSwitch(value: widget.st.master, onChanged: widget.onMaster),
-            ],
-          )
-        : Column(children: [_topBar(), _hero(n)]);
-
-    final searchRow = Padding(
-      padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+  Widget _groupHeader(String name, List<AppItem> list) {
+    final b = list.where((a) => a.blocked).length;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 18, 16, 10),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              focusNode: _search,
-              onChanged: (v) => setState(() => query = v),
-              decoration: InputDecoration(
-                hintText: 'Search apps\u2026',
-                hintStyle: TextStyle(color: AppColors.muted),
-                prefixIcon: Icon(Icons.search, color: AppColors.accent),
-                filled: true,
-                fillColor: AppColors.card,
-                contentPadding: EdgeInsets.symmetric(vertical: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: AppColors.border),
-                ),
-              ),
+            child: Row(
+              children: [
+                Text(name.toUpperCase(),
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.accent2)),
+                SizedBox(width: 8),
+                Text('$b of ${list.length} blocked', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              ],
             ),
           ),
-          SizedBox(width: 10),
-          PopupMenuButton<String>(
-            tooltip: 'Sort',
-            onSelected: (v) => setState(() => blockedFirst = v == 'blocked'),
-            itemBuilder: (_) => [
-              CheckedPopupMenuItem(value: 'az', checked: !blockedFirst, child: Text('Sort A\u2013Z')),
-              CheckedPopupMenuItem(value: 'blocked', checked: blockedFirst, child: Text('Blocked first')),
-            ],
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Icon(Icons.filter_list_rounded),
-            ),
-          ),
+          AppSwitch(value: b == list.length && list.isNotEmpty, onChanged: (v) => widget.onGroup(list, v)),
         ],
       ),
     );
+  }
 
-    final chipRow = widget.onlyBlocked
-        ? SizedBox(height: 12)
-        : SizedBox(
-            height: 58,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: chips.length,
-              separatorBuilder: (_, __) => SizedBox(width: 8),
-              itemBuilder: (_, i) => ChoiceChip(
-                label: Text(chips[i]),
-                selected: chip == i,
-                showCheckmark: false,
-                selectedColor: AppColors.accent,
-                backgroundColor: AppColors.card,
-                side: BorderSide(color: chip == i ? AppColors.accent : AppColors.border),
-                labelStyle: TextStyle(
-                  color: chip == i ? AppColors.onAccent : AppColors.chipText,
-                  fontWeight: chip == i ? FontWeight.w600 : FontWeight.w500,
-                ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                onSelected: (_) => setState(() => chip = i),
-              ),
-            ),
-          );
+  @override
+  Widget build(BuildContext context) {
+    var items = widget.apps.where((a) => a.name.toLowerCase().contains(query.toLowerCase())).toList();
+    if (!widget.st.showSystem) items = items.where((a) => !a.system || a.blocked).toList();
+    if (seg == 1) items = items.where((a) => a.blocked).toList();
+    if (seg == 2) items = items.where((a) => !a.blocked).toList();
+
+    final groups = <String, List<AppItem>>{};
+    for (final a in items) {
+      groups.putIfAbsent(a.category, () => []).add(a);
+    }
+    final names = groups.keys.toList()
+      ..sort((a, b) {
+        final ia = order.indexOf(a), ib = order.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: header),
-        SliverToBoxAdapter(child: searchRow),
-        SliverToBoxAdapter(child: chipRow),
+        SliverToBoxAdapter(child: PageHeader('Apps', '${widget.apps.length} apps')),
+        SliverToBoxAdapter(child: _search()),
+        SliverToBoxAdapter(child: _segments()),
         if (items.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
@@ -695,27 +548,318 @@ class _AppsPageState extends State<AppsPage> {
             ),
           )
         else
-          SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
-                  final app = items[i];
-                  return AppCard(
-                    key: ValueKey(app.package),
-                    app: app,
-                    onChanged: (v) => widget.onToggle(app, v),
-                    onInfo: () => widget.onInfo(app),
-                  );
-                },
-                childCount: items.length,
+          for (final g in names) ...[
+            SliverToBoxAdapter(child: _groupHeader(g, groups[g]!)),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) {
+                    final app = groups[g]![i];
+                    return AppCard(
+                      key: ValueKey(app.package),
+                      app: app,
+                      running: widget.st.running,
+                      onChanged: (v) => widget.onToggle(app, v),
+                      onInfo: () => widget.onInfo(app),
+                    );
+                  },
+                  childCount: groups[g]!.length,
+                ),
               ),
             ),
-          ),
+          ],
         SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
+}
+
+// ===== screens/home_page.dart =====
+class HomePage extends StatelessWidget {
+  const HomePage({
+    super.key,
+    required this.apps,
+    required this.st,
+    required this.onMaster,
+    required this.onTimer,
+    required this.onGoTab,
+    required this.onRefresh,
+    required this.onScheduleToggle,
+  });
+  final List<AppItem> apps;
+  final NativeState st;
+  final ValueChanged<bool> onMaster;
+  final VoidCallback onTimer;
+  final ValueChanged<int> onGoTab;
+  final VoidCallback onRefresh;
+  final ValueChanged<bool> onScheduleToggle;
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening');
+  }
+
+  String _time(int m) {
+    final h = (m ~/ 60) % 24;
+    final h12 = h % 12 == 0 ? 12 : h % 12;
+    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+  }
+
+  String _clock(int millis) {
+    final d = DateTime.fromMillisecondsSinceEpoch(millis);
+    return _time(d.hour * 60 + d.minute);
+  }
+
+  Widget _top(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(22, 14, 14, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_greeting(),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.muted)),
+                  Text('Block Internet',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              onSelected: (v) {
+                if (v == 'timer') onTimer();
+                if (v == 'refresh') onRefresh();
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'timer', child: Text('Timed block\u2026')),
+                PopupMenuItem(value: 'refresh', child: Text('Refresh apps')),
+              ],
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Icon(Icons.more_vert, size: 22),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _pill(IconData icon, String text, Color color) => Container(
+        height: 34,
+        padding: EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color),
+            SizedBox(width: 7),
+            Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      );
+
+  Widget _quick(IconData icon, String label, Color color, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Icon(icon, size: 26, color: color),
+            ),
+            SizedBox(height: 8),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.muted)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final n = apps.where((a) => a.blocked).length;
+    final on = st.running;
+    String title, sub;
+    if (on) {
+      title = 'Protected';
+      sub = '$n of ${apps.length} apps are offline';
+    } else if (!st.master) {
+      title = 'Paused';
+      sub = 'Tap the orb to resume';
+    } else if (n == 0) {
+      title = 'No apps selected';
+      sub = 'Open Apps and choose what to block';
+    } else {
+      title = 'Starting\u2026';
+      sub = 'Waiting for the VPN';
+    }
+    final second = st.timedActive
+        ? 'Timer until ${_clock(st.timedUntil)}'
+        : (st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : 'No schedule');
+
+    return ListView(
+      padding: EdgeInsets.only(bottom: 100),
+      children: [
+        _top(context),
+        SizedBox(height: 6),
+        Center(
+          child: _Orb(
+            on: on,
+            onTap: () => (n == 0 && !on) ? onGoTab(1) : onMaster(!st.master),
+          ),
+        ),
+        SizedBox(height: 8),
+        Center(child: Text(title, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -0.8))),
+        SizedBox(height: 2),
+        Center(child: Text(sub, style: TextStyle(fontSize: 13.5, color: AppColors.muted))),
+        SizedBox(height: 14),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _pill(Icons.shield_outlined, on ? 'VPN active' : 'VPN stopped', on ? AppColors.accent2 : AppColors.muted),
+            _pill(Icons.schedule, second, AppColors.muted),
+          ],
+        ),
+        SizedBox(height: 18),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _quick(Icons.timer_outlined, 'Timer', AppColors.coral, onTimer),
+              _quick(Icons.event_outlined, 'Schedule', AppColors.accent2, () => onGoTab(2)),
+              _quick(Icons.apps_rounded, 'Apps', AppColors.accent2, () => onGoTab(1)),
+              _quick(Icons.settings_outlined, 'Settings', AppColors.accent2, () => onGoTab(3)),
+            ],
+          ),
+        ),
+        SizedBox(height: 18),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withAlpha(40),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.nightlight_round, color: AppColors.accent2, size: 24),
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Schedule', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text('${_time(st.start)} \u2013 ${_time(st.end)} \u00b7 ${st.schedOn ? 'on' : 'off'}',
+                        style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              AppSwitch(value: st.schedOn, onChanged: onScheduleToggle),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Big tappable power orb: glowing gradient ring when protection is on.
+class _Orb extends StatelessWidget {
+  _Orb({required this.on, required this.onTap});
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: 260,
+          height: 260,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.accent.withAlpha(on ? 40 : 18)),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(26),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.accent.withAlpha(on ? 70 : 24)),
+                    gradient: RadialGradient(
+                      colors: [AppColors.accent.withAlpha(on ? 70 : 0), Colors.transparent],
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                width: 170,
+                height: 170,
+                padding: EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: on ? null : AppColors.border,
+                  gradient: on
+                      ? SweepGradient(colors: [AppColors.accent, AppColors.coral, AppColors.accent])
+                      : null,
+                  boxShadow: on ? [BoxShadow(color: AppColors.accent.withAlpha(110), blurRadius: 60)] : [],
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.logoA, AppColors.logoB],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.power_settings_new,
+                          size: 46, color: on ? AppColors.accent2 : AppColors.muted),
+                      SizedBox(height: 6),
+                      Text(on ? 'TAP TO PAUSE' : 'TAP TO START',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 // ===== screens/schedule_page.dart =====
@@ -733,6 +877,10 @@ class _SchedulePageState extends State<SchedulePage> {
   late int endMin = widget.st.end;
   late bool on = widget.st.schedOn;
   late List<bool> days = List.generate(7, (i) => ((widget.st.days >> i) & 1) == 1);
+  int? _drag; // 0 = start handle, 1 = end handle
+
+  static const double _size = 300;
+  static const double _r = 108;
 
   int get mask {
     var m = 0;
@@ -743,6 +891,48 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   int get durMin => ((endMin - startMin) % 1440 + 1440) % 1440;
+
+  String _t(int m) {
+    final h = (m ~/ 60) % 24;
+    final h12 = h % 12 == 0 ? 12 : h % 12;
+    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+  }
+
+  Offset _handle(int minutes) {
+    final a = minutes / 1440 * 2 * math.pi - math.pi / 2;
+    return Offset(_size / 2 + _r * math.cos(a), _size / 2 + _r * math.sin(a));
+  }
+
+  int _minutesAt(Offset p) {
+    final a = math.atan2(p.dy - _size / 2, p.dx - _size / 2) + math.pi / 2;
+    var f = a / (2 * math.pi);
+    f = f - f.floorToDouble();
+    return ((f * 1440 / 5).round() * 5) % 1440;
+  }
+
+  void _panDown(DragDownDetails d) {
+    final p = d.localPosition;
+    final ds = (p - _handle(startMin)).distance;
+    final de = (p - _handle(endMin)).distance;
+    setState(() => _drag = (ds < 42 || de < 42) ? (ds <= de ? 0 : 1) : null);
+  }
+
+  void _panUpdate(DragUpdateDetails d) {
+    if (_drag == null) return;
+    final v = _minutesAt(d.localPosition);
+    setState(() {
+      if (_drag == 0) {
+        startMin = v;
+      } else {
+        endMin = v;
+      }
+    });
+  }
+
+  void _panEnd() {
+    if (_drag != null && on) widget.onSchedule(true, startMin, endMin, mask);
+    setState(() => _drag = null);
+  }
 
   Future<void> pick(bool isStart) async {
     final cur = isStart ? startMin : endMin;
@@ -766,29 +956,94 @@ class _SchedulePageState extends State<SchedulePage> {
     if (ok) setState(() => on = true);
   }
 
+  Widget _timeTile(IconData icon, String label, int minutes, Color color, bool isStart) => Expanded(
+        child: GestureDetector(
+          onTap: () => pick(isStart),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 24, color: color),
+                SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                    Text(_t(minutes), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final h = durMin ~/ 60, m = durMin % 60;
-    final dur = h > 0 ? '$h h${m > 0 ? ' $m m' : ''}' : '$m m';
     final count = days.where((d) => d).length;
     return Column(
       children: [
-        PageHeader('Schedule', 'Auto-block by time of day'),
+        PageHeader('Schedule', count == 7 ? 'Every day' : '$count days a week'),
         Expanded(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(20, 10, 20, 100),
+            physics: _drag != null ? NeverScrollableScrollPhysics() : null,
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 100),
             children: [
-              Text(
-                'Your selected apps lose internet at the start time and get it back at the end time.',
-                style: TextStyle(fontSize: 14, height: 1.6, color: AppColors.muted),
+              Center(
+                child: GestureDetector(
+                  onPanDown: _panDown,
+                  onPanUpdate: _panUpdate,
+                  onPanEnd: (_) => _panEnd(),
+                  onPanCancel: _panEnd,
+                  child: SizedBox(
+                    width: _size,
+                    height: _size,
+                    child: Stack(
+                      children: [
+                        CustomPaint(
+                          size: Size(_size, _size),
+                          painter: _DialPainter(
+                            start: startMin,
+                            end: endMin,
+                            accent: AppColors.accent,
+                            coral: AppColors.coral,
+                            track: AppColors.tonal,
+                            label: AppColors.muted,
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('OFFLINE FOR',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1.2,
+                                      color: AppColors.muted)),
+                              Text(m == 0 ? '$h h' : '$h h $m m',
+                                  style: TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -1.4)),
+                              Text('${_t(startMin)} \u2192 ${_t(endMin)}',
+                                  style: TextStyle(
+                                      fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.accent2)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _TimeCard('Start', startMin, () => pick(true))),
-                  SizedBox(width: 12),
-                  Expanded(child: _TimeCard('End', endMin, () => pick(false))),
-                ],
+              SizedBox(height: 6),
+              Center(
+                child: Text('Drag the white handles or tap a time',
+                    style: TextStyle(fontSize: 12, color: AppColors.hint)),
               ),
               SizedBox(height: 14),
               Row(
@@ -805,68 +1060,35 @@ class _SchedulePageState extends State<SchedulePage> {
                         height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
+                          shape: BoxShape.circle,
                           color: days[i] ? AppColors.accent : AppColors.card,
-                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: days[i] ? AppColors.accent : AppColors.border),
                         ),
                         child: Text('SMTWTFS'[i],
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: days[i] ? AppColors.onAccent : AppColors.chipText)),
+                                color: days[i] ? AppColors.onAccent : AppColors.muted)),
                       ),
                     ),
                 ],
               ),
               SizedBox(height: 14),
-              Box(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Blocks for $dur', style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text(count == 7 ? 'Every day' : '$count days a week',
-                            style: TextStyle(color: AppColors.muted)),
-                      ],
-                    ),
-                    SizedBox(height: 14),
-                    LayoutBuilder(
-                      builder: (_, c) => Stack(
-                        children: [
-                          Container(
-                            height: 10,
-                            decoration: BoxDecoration(
-                                color: AppColors.track, borderRadius: BorderRadius.circular(5)),
-                          ),
-                          Positioned(
-                            left: c.maxWidth * startMin / 1440,
-                            width: (c.maxWidth * durMin / 1440)
-                                .clamp(6.0, c.maxWidth - c.maxWidth * startMin / 1440),
-                            child: Container(
-                              height: 10,
-                              decoration: BoxDecoration(
-                                  color: AppColors.accent, borderRadius: BorderRadius.circular(5)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                        Text('12 PM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                        Text('12 AM', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-                      ],
-                    ),
-                  ],
-                ),
+              Row(
+                children: [
+                  _timeTile(Icons.nightlight_round, 'Start', startMin, AppColors.accent2, true),
+                  SizedBox(width: 10),
+                  _timeTile(Icons.wb_sunny_outlined, 'End', endMin, AppColors.coral, false),
+                ],
               ),
               SizedBox(height: 12),
-              Box(
+              Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: AppColors.border),
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -885,17 +1107,24 @@ class _SchedulePageState extends State<SchedulePage> {
                 ),
               ),
               SizedBox(height: 16),
-              SizedBox(
-                height: 58,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(29)),
-                    textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+              GestureDetector(
+                onTap: save,
+                child: Container(
+                  height: 58,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(29),
+                    gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent2]),
+                    boxShadow: [
+                      BoxShadow(color: AppColors.accent.withAlpha(90), blurRadius: 30, offset: Offset(0, 10)),
+                    ],
                   ),
-                  onPressed: save,
-                  child: Text('SET SCHEDULE'),
+                  child: Text('SAVE SCHEDULE',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: AppColors.onAccent)),
                 ),
               ),
             ],
@@ -906,45 +1135,74 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 }
 
-class _TimeCard extends StatelessWidget {
-  _TimeCard(this.label, this.minutes, this.onTap);
-  final String label;
-  final int minutes;
-  final VoidCallback onTap;
+/// 24-hour dial: the blocked window is a gradient arc with two draggable handles.
+class _DialPainter extends CustomPainter {
+  _DialPainter({
+    required this.start,
+    required this.end,
+    required this.accent,
+    required this.coral,
+    required this.track,
+    required this.label,
+  });
+  final int start, end;
+  final Color accent, coral, track, label;
 
   @override
-  Widget build(BuildContext context) {
-    final hour = minutes ~/ 60;
-    final h12 = hour % 12 == 0 ? 12 : hour % 12;
-    final txt = '${h12.toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
-    return InkWell(
-      borderRadius: BorderRadius.circular(26),
-      onTap: onTap,
-      child: Box(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w600)),
-            SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(txt,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.5)),
-                SizedBox(width: 5),
-                Text(hour < 12 ? 'AM' : 'PM',
-                    style: TextStyle(fontSize: 14, color: AppColors.muted)),
-              ],
-            ),
-            SizedBox(height: 4),
-            Text('Tap to change', style: TextStyle(fontSize: 11, color: AppColors.hint)),
-          ],
-        ),
-      ),
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    const r = 108.0;
+    final rect = Rect.fromCircle(center: c, radius: r);
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 26
+        ..color = track,
     );
+    final startAngle = start / 1440 * 2 * math.pi - math.pi / 2;
+    final dur = ((end - start) % 1440 + 1440) % 1440;
+    final sweep = dur / 1440 * 2 * math.pi;
+    if (sweep > 0) {
+      canvas.drawArc(
+        rect,
+        startAngle,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 26
+          ..strokeCap = StrokeCap.round
+          ..shader = SweepGradient(
+            startAngle: 0,
+            endAngle: sweep,
+            colors: [accent, coral],
+            transform: GradientRotation(startAngle),
+          ).createShader(rect),
+      );
+    }
+    for (final m in [start, end]) {
+      final a = m / 1440 * 2 * math.pi - math.pi / 2;
+      final p = c + Offset(r * math.cos(a), r * math.sin(a));
+      canvas.drawCircle(p + Offset(0, 2), 10, Paint()..color = Color(0x55000000));
+      canvas.drawCircle(p, 9, Paint()..color = Colors.white);
+    }
+    const marks = {0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM'};
+    marks.forEach((h, text) {
+      final a = h / 24 * 2 * math.pi - math.pi / 2;
+      final p = c + Offset(142 * math.cos(a), 142 * math.sin(a));
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: label)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, p - Offset(tp.width / 2, tp.height / 2));
+    });
   }
+
+  @override
+  bool shouldRepaint(_DialPainter o) =>
+      o.start != start || o.end != end || o.accent != accent || o.coral != coral || o.track != track;
 }
 
 // ===== screens/settings_page.dart =====
@@ -1752,6 +2010,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> toggleGroup(List<AppItem> list, bool v) async {
+    if (v && !await ensureVpn()) return;
+    for (final a in list) {
+      a.blocked = v;
+    }
+    refresh();
+    await BlockService.setBlocked(apps.where((x) => x.blocked).map((x) => x.package));
+    if (v) {
+      await verifyRunning();
+    } else {
+      await reloadState();
+    }
+  }
+
   Future<void> setMaster(bool v) async {
     if (v && !await ensureVpn()) return;
     await BlockService.setMaster(v);
@@ -1953,28 +2225,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      AppsPage(
-        title: 'Block Internet Access',
+      HomePage(
         apps: apps,
         st: st,
-        onlyBlocked: false,
-        onToggle: toggleApp,
         onMaster: setMaster,
         onTimer: timer,
-        onGoSchedule: () => setState(() => tab = 2),
+        onGoTab: (i) => setState(() => tab = i),
         onRefresh: load,
-        onInfo: (a) => BlockService.openAppInfo(a.package),
+        onScheduleToggle: (v) => schedule(v, st.start, st.end, st.days),
       ),
       AppsPage(
-        title: 'Blocked Apps',
         apps: apps,
         st: st,
-        onlyBlocked: true,
         onToggle: toggleApp,
-        onMaster: setMaster,
-        onTimer: timer,
-        onGoSchedule: () => setState(() => tab = 2),
-        onRefresh: load,
+        onGroup: toggleGroup,
         onInfo: (a) => BlockService.openAppInfo(a.package),
       ),
       SchedulePage(st: st, onSchedule: schedule),
@@ -1998,9 +2262,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
+                  center: Alignment(-1.1, 0.9),
+                  radius: 0.9,
+                  colors: [AppColors.coral.withAlpha(26), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
                   center: Alignment(0.9, -1.1),
                   radius: 1.0,
-                  colors: [AppColors.accent.withAlpha(36), Colors.transparent],
+                  colors: [AppColors.accent.withAlpha(60), Colors.transparent],
                 ),
               ),
             ),
@@ -2046,7 +2321,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           margin: EdgeInsets.fromLTRB(14, 0, 14, 12),
           decoration: BoxDecoration(
             color: AppColors.navBg,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(35),
             border: Border.all(color: AppColors.navBorder),
           ),
           clipBehavior: Clip.antiAlias,
@@ -2057,8 +2332,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             selectedIndex: tab,
             onDestinationSelected: (i) => setState(() => tab = i),
             destinations: [
-              NavigationDestination(icon: Icon(Icons.list_rounded), label: 'Apps'),
-              NavigationDestination(icon: Icon(Icons.block), label: 'Blocked'),
+              NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
+              NavigationDestination(icon: Icon(Icons.apps_rounded), label: 'Apps'),
               NavigationDestination(icon: Icon(Icons.timer_outlined), label: 'Schedule'),
               NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
             ],

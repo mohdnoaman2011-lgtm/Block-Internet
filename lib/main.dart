@@ -1,4 +1,4 @@
-// Block Internet Access: complete Flutter app in ONE file (Material 3, Indigo design, dark/light).
+// Block Internet Access: complete Flutter app in ONE file (Material 3, Indigo design, dark/light, English/Arabic).
 // Put this as lib/main.dart. Requires Flutter 3.22+ and the native Android code from main.yml.
 
 import 'dart:math' as math;
@@ -71,6 +71,207 @@ ThemeData buildTheme(bool dark) => ThemeData(
       // Add the Rubik font (google_fonts or assets) for the exact look.
     );
 
+// ===== i18n.dart =====
+/// Current UI language: 'en' or 'ar' (Arabic is laid out right-to-left).
+class L {
+  static String code = 'en';
+  static bool get rtl => code == 'ar';
+}
+
+/// Sets the language ('en', 'ar', or anything else to follow the phone) and rebuilds the app.
+void applyLang(String code) {
+  var c = code;
+  if (c != 'en' && c != 'ar') {
+    c = WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'ar' ? 'ar' : 'en';
+  }
+  L.code = c;
+  themeNotifier.value++;
+}
+
+/// Translates an English UI text. Placeholders like {n} are filled from [args].
+String tr(String en, [Map<String, Object>? args]) {
+  var s = L.code == 'ar' ? (_ar[en] ?? en) : en;
+  if (args != null) {
+    args.forEach((k, v) {
+      s = s.replaceAll('{$k}', '$v');
+    });
+  }
+  return s;
+}
+
+/// First letter of each weekday, Sunday first.
+String dayLetter(int i) => L.rtl ? 'حنثرخجس'[i] : 'SMTWTFS'[i];
+
+const Map<String, String> _ar = {
+  'Home': 'الرئيسية',
+  'Apps': 'التطبيقات',
+  'Schedule': 'الجدولة',
+  'Settings': 'الإعدادات',
+  'Block Internet Access': 'حظر الإنترنت',
+  'Block Internet': 'حظر الإنترنت',
+  'Block Internet\nAccess': 'حظر الإنترنت\nللتطبيقات',
+  'Good morning': 'صباح الخير',
+  'Good afternoon': 'طاب يومك',
+  'Good evening': 'مساء الخير',
+  'More': 'المزيد',
+  'Timed block\u2026': 'حظر مؤقت…',
+  'Refresh apps': 'تحديث التطبيقات',
+  'Protected': 'محمي',
+  'Paused': 'متوقف مؤقتاً',
+  'Tap the orb to resume': 'اضغط على الكرة للاستئناف',
+  'No apps selected': 'لم تختر أي تطبيق',
+  'Open Apps and choose what to block': 'افتح التطبيقات واختر ما تريد حظره',
+  'Starting\u2026': 'جارٍ التشغيل…',
+  'Waiting for the VPN': 'بانتظار الـ VPN',
+  'No schedule': 'بلا جدولة',
+  'VPN active': 'VPN يعمل',
+  'VPN stopped': 'VPN متوقف',
+  'Timer': 'المؤقت',
+  'TAP TO PAUSE': 'اضغط للإيقاف',
+  'TAP TO START': 'اضغط للتشغيل',
+  '{n} of {t} apps are offline': '{n} من {t} تطبيقاً بلا إنترنت',
+  'Timer until {time}': 'المؤقت حتى {time}',
+  'on': 'مفعّلة',
+  'off': 'متوقفة',
+  'AM': 'ص',
+  'PM': 'م',
+  'All': 'الكل',
+  'Blocked': 'محظور',
+  'Allowed': 'مسموح',
+  'Social': 'التواصل',
+  'Games': 'الألعاب',
+  'Media': 'الوسائط',
+  'News': 'الأخبار',
+  'Work': 'العمل',
+  'Maps': 'الخرائط',
+  'Other': 'أخرى',
+  'Search {n} apps\u2026': 'ابحث في {n} تطبيقاً…',
+  '{b} of {t} blocked': '{b} من {t} محظور',
+  '{n} apps': '{n} تطبيقاً',
+  'No apps found on this device': 'لا توجد تطبيقات على هذا الجهاز',
+  'No matching apps': 'لا توجد تطبيقات مطابقة',
+  'Blocked \u00b7 always': 'محظور · دائماً',
+  'Selected \u00b7 protection paused': 'محدد · الحماية متوقفة',
+  'BLOCKED': 'محظور',
+  'App info': 'معلومات التطبيق',
+  'Allow VPN connection': 'السماح باتصال VPN',
+  'Block Internet uses a local VPN to cut internet for the apps you choose. No data leaves your device.': 'يستخدم التطبيق VPN محلياً لقطع الإنترنت عن التطبيقات التي تختارها. لا تغادر أي بيانات جهازك.',
+  'Only the apps you pick lose internet': 'التطبيقات التي تختارها فقط تفقد الإنترنت',
+  'Everything stays on your phone': 'كل شيء يبقى على هاتفك',
+  'You can turn it off anytime': 'يمكنك إيقافه في أي وقت',
+  'CONTINUE': 'متابعة',
+  'Not now': 'ليس الآن',
+  'Android will ask you to confirm': 'سيطلب منك أندرويد التأكيد',
+  'Every day': 'كل يوم',
+  '{n} days a week': '{n} أيام في الأسبوع',
+  'OFFLINE FOR': 'بلا إنترنت لمدة',
+  '{h} h': '{h} س',
+  '{h} h {m} m': '{h} س {m} د',
+  'Drag the white handles or tap a time': 'اسحب المقبضين الأبيضين أو اضغط على الوقت',
+  'Start': 'البداية',
+  'End': 'النهاية',
+  'Schedule enabled': 'تفعيل الجدولة',
+  'Applies to the apps you blocked': 'تُطبَّق على التطبيقات التي حظرتها',
+  'SAVE SCHEDULE': 'حفظ الجدولة',
+  'Customize how blocking works': 'خصّص طريقة الحظر',
+  'Appearance': 'المظهر',
+  'Language': 'اللغة',
+  'Protection': 'الحماية',
+  'Block automatically by time of day': 'حظر تلقائي حسب وقت اليوم',
+  'Off': 'متوقف',
+  'On': 'يعمل',
+  'Timed block': 'حظر مؤقت',
+  'Block for a fixed period': 'حظر لمدة محددة',
+  'Until {time}': 'حتى {time}',
+  'Behavior': 'السلوك',
+  'Start on boot': 'التشغيل عند إقلاع الجهاز',
+  'Resume protection after restart': 'استئناف الحماية بعد إعادة التشغيل',
+  'Show system apps': 'إظهار تطبيقات النظام',
+  'Include system apps in the list': 'تضمين تطبيقات النظام في القائمة',
+  'Block list': 'قائمة الحظر',
+  'Copy block list': 'نسخ قائمة الحظر',
+  'Copy the blocked apps to the clipboard': 'نسخ التطبيقات المحظورة إلى الحافظة',
+  'Paste block list': 'لصق قائمة الحظر',
+  'Block the apps found in the clipboard': 'حظر التطبيقات الموجودة في الحافظة',
+  'Unblock all apps': 'إلغاء حظر كل التطبيقات',
+  'Give every app its internet back': 'إعادة الإنترنت لكل التطبيقات',
+  'General': 'عام',
+  'VPN permission': 'إذن VPN',
+  'Needed to block apps': 'مطلوب لحظر التطبيقات',
+  'Granted': 'ممنوح',
+  'Request': 'طلب',
+  'Run in background': 'العمل في الخلفية',
+  'Allow unrestricted battery use': 'السماح باستخدام البطارية دون قيود',
+  'Open': 'فتح',
+  'How it works': 'كيف يعمل',
+  'What this app does and does not do': 'ما يفعله التطبيق وما لا يفعله',
+  'About': 'حول التطبيق',
+  'Version 1.0': 'الإصدار 1.0',
+  'Permission needed': 'مطلوب إذن',
+  'Protection active': 'الحماية تعمل',
+  'Protection idle': 'الحماية متوقفة',
+  'Allow the VPN so blocking can work': 'اسمح بالـ VPN ليعمل الحظر',
+  '{n} apps in the block list': 'عدد التطبيقات في قائمة الحظر: {n}',
+  'Grant VPN permission': 'منح إذن VPN',
+  'Diagnostics': 'التشخيص',
+  'Battery': 'البطارية',
+  'The app creates a local VPN that carries only the apps you block and drops their traffic, so they have no internet. All other apps work normally. Nothing is sent anywhere and nothing is collected.\n\nAndroid allows only one VPN at a time, so starting another VPN app pauses this one.': 'ينشئ التطبيق VPN محلياً يمرّر التطبيقات التي تحظرها فقط ويُسقط حركة بياناتها، فلا يصلها الإنترنت. أما بقية التطبيقات فتعمل بشكل طبيعي. لا يُرسل شيء إلى أي مكان ولا تُجمع أي بيانات.\n\nيسمح أندرويد بـ VPN واحد فقط في كل وقت، لذلك يتوقف هذا التطبيق مؤقتاً عند تشغيل تطبيق VPN آخر.',
+  'OK': 'حسناً',
+  'Missing': 'غير ممنوح',
+  'Blocking service': 'خدمة الحظر',
+  'Running': 'تعمل',
+  'Stopped': 'متوقفة',
+  'Apps in block list': 'التطبيقات في قائمة الحظر',
+  'Main switch': 'المفتاح الرئيسي',
+  'Active': 'نشط',
+  'None': 'لا يوجد',
+  'Last error': 'آخر خطأ',
+  'Close': 'إغلاق',
+  'System': 'النظام',
+  'Dark': 'داكن',
+  'Light': 'فاتح',
+  'Accent color': 'لون التطبيق',
+  'Unblock all apps?': 'إلغاء حظر كل التطبيقات؟',
+  'Every app will get its internet access back.': 'سيعود الإنترنت لكل التطبيقات.',
+  'Unblock all': 'إلغاء حظر الكل',
+  'Cancel': 'إلغاء',
+  'Blocks internet access for the apps you choose using a local VPN. No traffic leaves your device and nothing is collected.': 'يحظر الإنترنت عن التطبيقات التي تختارها باستخدام VPN محلي. لا تغادر أي بيانات جهازك ولا يُجمع شيء.',
+  'Indigo': 'نيلي',
+  'Sage': 'مريمي',
+  'Ocean': 'محيطي',
+  'Lavender': 'لافندر',
+  'Sand': 'رملي',
+  'Rose': 'وردي',
+  'Take control of every app\u2019s connection': 'تحكّم باتصال كل تطبيق',
+  'Securing your connections\u2026': 'جارٍ تأمين اتصالاتك…',
+  'VPN permission is required to block apps': 'إذن VPN مطلوب لحظر التطبيقات',
+  'Blocking did not start': 'لم يبدأ الحظر',
+  'Select the apps to block first': 'اختر التطبيقات المراد حظرها أولاً',
+  'Selected apps are blocked for {d}': 'الحظر مفعّل على التطبيقات المحددة لمدة {d}',
+  '15 minutes': '15 دقيقة',
+  '1 hour': 'ساعة واحدة',
+  '4 hours': '4 ساعات',
+  'Until tomorrow morning': 'حتى صباح الغد',
+  '{m} minutes': '{m} دقيقة',
+  '{h} hours': '{h} ساعة',
+  'Block selected apps for\u2026': 'حظر التطبيقات المحددة لمدة…',
+  '{n} apps will lose internet until the timer ends.': 'عدد التطبيقات التي ستفقد الإنترنت حتى ينتهي المؤقت: {n}',
+  'START TIMER': 'بدء المؤقت',
+  'Cancel timed block': 'إلغاء الحظر المؤقت',
+  'Timed block cancelled': 'أُلغي الحظر المؤقت',
+  'Schedule turned off': 'أُوقفت الجدولة',
+  'Schedule saved. Select the apps to block': 'حُفظت الجدولة. اختر التطبيقات المراد حظرها',
+  'Schedule saved': 'حُفظت الجدولة',
+  'The block list is empty': 'قائمة الحظر فارغة',
+  'Copied {n} apps to the clipboard': 'نُسخ {n} تطبيقاً إلى الحافظة',
+  'No matching apps found in the clipboard': 'لم يُعثر على تطبيقات مطابقة في الحافظة',
+  'Blocked {n} apps': 'تم حظر {n} تطبيقاً',
+  'Block list cleared': 'تم مسح قائمة الحظر',
+  'Loading apps\u2026': 'جارٍ تحميل التطبيقات…',
+  'Could not load the apps list': 'تعذّر تحميل قائمة التطبيقات',
+  'Retry': 'إعادة المحاولة',
+};
+
 // ===== models/app_item.dart =====
 class AppItem {
   AppItem({
@@ -111,6 +312,7 @@ class NativeState {
     this.error = '',
     this.themeMode = 0,
     this.accent = 0,
+    this.lang = '',
   });
 
   final Set<String> blocked;
@@ -118,6 +320,7 @@ class NativeState {
   final int start, end, days, timedUntil;
   final String error;
   final int themeMode, accent;
+  final String lang;
 
   bool get timedActive => timedUntil > DateTime.now().millisecondsSinceEpoch;
 
@@ -137,6 +340,7 @@ class NativeState {
         error: m['error'] as String? ?? '',
         themeMode: (m['themeMode'] as num?)?.toInt() ?? 0,
         accent: (m['accent'] as num?)?.toInt() ?? 0,
+        lang: m['lang'] as String? ?? '',
       );
 }
 
@@ -244,7 +448,7 @@ class PageHeader extends StatelessWidget {
   Widget build(BuildContext context) => SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 14, 14, 14),
+          padding: EdgeInsetsDirectional.fromSTEB(20, 14, 14, 14),
           child: Row(
             children: [
               Expanded(
@@ -270,7 +474,7 @@ class PageHeader extends StatelessWidget {
 class Box extends StatelessWidget {
   Box({super.key, required this.child, this.padding = const EdgeInsets.all(16)});
   final Widget child;
-  final EdgeInsets padding;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -324,7 +528,7 @@ class _AppCardState extends State<AppCard> {
   Widget build(BuildContext context) {
     final a = widget.app;
     final on = a.blocked;
-    final sub = on ? (widget.running ? 'Blocked \u00b7 always' : 'Selected \u00b7 protection paused') : 'Allowed';
+    final sub = on ? (widget.running ? tr('Blocked \u00b7 always') : tr('Selected \u00b7 protection paused')) : tr('Allowed');
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => open = !open),
@@ -333,7 +537,7 @@ class _AppCardState extends State<AppCard> {
         alignment: Alignment.topCenter,
         child: Container(
           margin: EdgeInsets.only(bottom: 8),
-          padding: EdgeInsets.fromLTRB(10, 11, 14, 11),
+          padding: EdgeInsetsDirectional.fromSTEB(10, 11, 14, 11),
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(26),
@@ -359,13 +563,13 @@ class _AppCardState extends State<AppCard> {
                             ),
                             if (on)
                               Container(
-                                margin: EdgeInsets.only(left: 8),
+                                margin: EdgeInsetsDirectional.only(start: 8),
                                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: AppColors.coral.withAlpha(40),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text('BLOCKED',
+                                child: Text(tr('BLOCKED'),
                                     style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
@@ -385,7 +589,7 @@ class _AppCardState extends State<AppCard> {
               ),
               if (open)
                 Padding(
-                  padding: EdgeInsets.only(top: 12, left: 2),
+                  padding: EdgeInsetsDirectional.only(top: 12, start: 2),
                   child: Row(
                     children: [
                       Expanded(
@@ -394,7 +598,7 @@ class _AppCardState extends State<AppCard> {
                       OutlinedButton.icon(
                         onPressed: widget.onInfo,
                         icon: Icon(Icons.info_outline, size: 18),
-                        label: Text('App info'),
+                        label: Text(tr('App info')),
                       ),
                     ],
                   ),
@@ -434,11 +638,11 @@ class _AppsPageState extends State<AppsPage> {
   static const order = ['Social', 'Games', 'Media', 'News', 'Work', 'Maps', 'Other'];
 
   Widget _search() => Padding(
-        padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+        padding: EdgeInsetsDirectional.fromSTEB(16, 6, 16, 0),
         child: TextField(
           onChanged: (v) => setState(() => query = v),
           decoration: InputDecoration(
-            hintText: 'Search ${widget.apps.length} apps\u2026',
+            hintText: tr('Search {n} apps\u2026', {'n': widget.apps.length}),
             hintStyle: TextStyle(color: AppColors.muted),
             prefixIcon: Icon(Icons.search, color: AppColors.muted),
             filled: true,
@@ -457,7 +661,7 @@ class _AppsPageState extends State<AppsPage> {
       );
 
   Widget _segments() => Container(
-        margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
+        margin: EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
         padding: EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: AppColors.card,
@@ -478,7 +682,7 @@ class _AppsPageState extends State<AppsPage> {
                       color: seg == i ? AppColors.accent : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(segs[i],
+                    child: Text(tr(segs[i]),
                         style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
@@ -493,17 +697,17 @@ class _AppsPageState extends State<AppsPage> {
   Widget _groupHeader(String name, List<AppItem> list) {
     final b = list.where((a) => a.blocked).length;
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 18, 16, 10),
+      padding: EdgeInsetsDirectional.fromSTEB(20, 18, 16, 10),
       child: Row(
         children: [
           Expanded(
             child: Row(
               children: [
-                Text(name.toUpperCase(),
+                Text(tr(name).toUpperCase(),
                     style: TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.accent2)),
                 SizedBox(width: 8),
-                Text('$b of ${list.length} blocked', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                Text(tr('{b} of {t} blocked', {'b': b, 't': list.length}), style: TextStyle(fontSize: 12, color: AppColors.muted)),
               ],
             ),
           ),
@@ -532,7 +736,7 @@ class _AppsPageState extends State<AppsPage> {
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: PageHeader('Apps', '${widget.apps.length} apps')),
+        SliverToBoxAdapter(child: PageHeader(tr('Apps'), tr('{n} apps', {'n': widget.apps.length}))),
         SliverToBoxAdapter(child: _search()),
         SliverToBoxAdapter(child: _segments()),
         if (items.isEmpty)
@@ -541,7 +745,7 @@ class _AppsPageState extends State<AppsPage> {
               padding: EdgeInsets.only(top: 48),
               child: Center(
                 child: Text(
-                  widget.apps.isEmpty ? 'No apps found on this device' : 'No matching apps',
+                  widget.apps.isEmpty ? tr('No apps found on this device') : tr('No matching apps'),
                   style: TextStyle(color: AppColors.muted),
                 ),
               ),
@@ -597,13 +801,13 @@ class HomePage extends StatelessWidget {
 
   String _greeting() {
     final h = DateTime.now().hour;
-    return h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening');
+    return h < 12 ? tr('Good morning') : (h < 18 ? tr('Good afternoon') : tr('Good evening'));
   }
 
   String _time(int m) {
     final h = (m ~/ 60) % 24;
     final h12 = h % 12 == 0 ? 12 : h % 12;
-    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? tr('AM') : tr('PM')}';
   }
 
   String _clock(int millis) {
@@ -612,7 +816,7 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _top(BuildContext context) => Padding(
-        padding: EdgeInsets.fromLTRB(22, 14, 14, 4),
+        padding: EdgeInsetsDirectional.fromSTEB(22, 14, 14, 4),
         child: Row(
           children: [
             Expanded(
@@ -621,20 +825,20 @@ class HomePage extends StatelessWidget {
                 children: [
                   Text(_greeting(),
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.muted)),
-                  Text('Block Internet',
+                  Text(tr('Block Internet'),
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
                 ],
               ),
             ),
             PopupMenuButton<String>(
-              tooltip: 'More',
+              tooltip: tr('More'),
               onSelected: (v) {
                 if (v == 'timer') onTimer();
                 if (v == 'refresh') onRefresh();
               },
               itemBuilder: (_) => [
-                PopupMenuItem(value: 'timer', child: Text('Timed block\u2026')),
-                PopupMenuItem(value: 'refresh', child: Text('Refresh apps')),
+                PopupMenuItem(value: 'timer', child: Text(tr('Timed block\u2026'))),
+                PopupMenuItem(value: 'refresh', child: Text(tr('Refresh apps'))),
               ],
               child: Container(
                 width: 44,
@@ -695,21 +899,21 @@ class HomePage extends StatelessWidget {
     final on = st.running;
     String title, sub;
     if (on) {
-      title = 'Protected';
+      title = tr('Protected');
       sub = '$n of ${apps.length} apps are offline';
     } else if (!st.master) {
-      title = 'Paused';
-      sub = 'Tap the orb to resume';
+      title = tr('Paused');
+      sub = tr('Tap the orb to resume');
     } else if (n == 0) {
-      title = 'No apps selected';
-      sub = 'Open Apps and choose what to block';
+      title = tr('No apps selected');
+      sub = tr('Open Apps and choose what to block');
     } else {
-      title = 'Starting\u2026';
-      sub = 'Waiting for the VPN';
+      title = tr('Starting\u2026');
+      sub = tr('Waiting for the VPN');
     }
     final second = st.timedActive
-        ? 'Timer until ${_clock(st.timedUntil)}'
-        : (st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : 'No schedule');
+        ? tr('Timer until {time}', {'time': _clock(st.timedUntil)})
+        : (st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : tr('No schedule'));
 
     return ListView(
       padding: EdgeInsets.only(bottom: 100),
@@ -732,7 +936,7 @@ class HomePage extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _pill(Icons.shield_outlined, on ? 'VPN active' : 'VPN stopped', on ? AppColors.accent2 : AppColors.muted),
+            _pill(Icons.shield_outlined, on ? tr('VPN active') : tr('VPN stopped'), on ? AppColors.accent2 : AppColors.muted),
             _pill(Icons.schedule, second, AppColors.muted),
           ],
         ),
@@ -742,10 +946,10 @@ class HomePage extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _quick(Icons.timer_outlined, 'Timer', AppColors.coral, onTimer),
-              _quick(Icons.event_outlined, 'Schedule', AppColors.accent2, () => onGoTab(2)),
-              _quick(Icons.apps_rounded, 'Apps', AppColors.accent2, () => onGoTab(1)),
-              _quick(Icons.settings_outlined, 'Settings', AppColors.accent2, () => onGoTab(3)),
+              _quick(Icons.timer_outlined, tr('Timer'), AppColors.coral, onTimer),
+              _quick(Icons.event_outlined, tr('Schedule'), AppColors.accent2, () => onGoTab(2)),
+              _quick(Icons.apps_rounded, tr('Apps'), AppColors.accent2, () => onGoTab(1)),
+              _quick(Icons.settings_outlined, tr('Settings'), AppColors.accent2, () => onGoTab(3)),
             ],
           ),
         ),
@@ -774,8 +978,8 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Schedule', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    Text('${_time(st.start)} \u2013 ${_time(st.end)} \u00b7 ${st.schedOn ? 'on' : 'off'}',
+                    Text(tr('Schedule'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text('${_time(st.start)} \u2013 ${_time(st.end)} \u00b7 ${st.schedOn ? tr('on') : tr('off')}',
                         style: TextStyle(fontSize: 12, color: AppColors.muted)),
                   ],
                 ),
@@ -850,7 +1054,7 @@ class _Orb extends StatelessWidget {
                       Icon(Icons.power_settings_new,
                           size: 46, color: on ? AppColors.accent2 : AppColors.muted),
                       SizedBox(height: 6),
-                      Text(on ? 'TAP TO PAUSE' : 'TAP TO START',
+                      Text(on ? tr('TAP TO PAUSE') : tr('TAP TO START'),
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
                     ],
                   ),
@@ -895,7 +1099,7 @@ class _SchedulePageState extends State<SchedulePage> {
   String _t(int m) {
     final h = (m ~/ 60) % 24;
     final h12 = h % 12 == 0 ? 12 : h % 12;
-    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? tr('AM') : tr('PM')}';
   }
 
   Offset _handle(int minutes) {
@@ -989,11 +1193,11 @@ class _SchedulePageState extends State<SchedulePage> {
     final count = days.where((d) => d).length;
     return Column(
       children: [
-        PageHeader('Schedule', count == 7 ? 'Every day' : '$count days a week'),
+        PageHeader(tr('Schedule'), count == 7 ? tr('Every day') : tr('{n} days a week', {'n': count})),
         Expanded(
           child: ListView(
             physics: _drag != null ? NeverScrollableScrollPhysics() : null,
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 100),
+            padding: EdgeInsetsDirectional.fromSTEB(16, 4, 16, 100),
             children: [
               Center(
                 child: GestureDetector(
@@ -1021,13 +1225,13 @@ class _SchedulePageState extends State<SchedulePage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('OFFLINE FOR',
+                              Text(tr('OFFLINE FOR'),
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 1.2,
                                       color: AppColors.muted)),
-                              Text(m == 0 ? '$h h' : '$h h $m m',
+                              Text(m == 0 ? tr('{h} h', {'h': h}) : tr('{h} h {m} m', {'h': h, 'm': m}),
                                   style: TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -1.4)),
                               Text('${_t(startMin)} \u2192 ${_t(endMin)}',
                                   style: TextStyle(
@@ -1042,7 +1246,7 @@ class _SchedulePageState extends State<SchedulePage> {
               ),
               SizedBox(height: 6),
               Center(
-                child: Text('Drag the white handles or tap a time',
+                child: Text(tr('Drag the white handles or tap a time'),
                     style: TextStyle(fontSize: 12, color: AppColors.hint)),
               ),
               SizedBox(height: 14),
@@ -1064,7 +1268,7 @@ class _SchedulePageState extends State<SchedulePage> {
                           color: days[i] ? AppColors.accent : AppColors.card,
                           border: Border.all(color: days[i] ? AppColors.accent : AppColors.border),
                         ),
-                        child: Text('SMTWTFS'[i],
+                        child: Text(dayLetter(i),
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -1076,9 +1280,9 @@ class _SchedulePageState extends State<SchedulePage> {
               SizedBox(height: 14),
               Row(
                 children: [
-                  _timeTile(Icons.nightlight_round, 'Start', startMin, AppColors.accent2, true),
+                  _timeTile(Icons.nightlight_round, tr('Start'), startMin, AppColors.accent2, true),
                   SizedBox(width: 10),
-                  _timeTile(Icons.wb_sunny_outlined, 'End', endMin, AppColors.coral, false),
+                  _timeTile(Icons.wb_sunny_outlined, tr('End'), endMin, AppColors.coral, false),
                 ],
               ),
               SizedBox(height: 12),
@@ -1095,9 +1299,9 @@ class _SchedulePageState extends State<SchedulePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Schedule enabled',
+                          Text(tr('Schedule enabled'),
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                          Text('Applies to the apps you blocked',
+                          Text(tr('Applies to the apps you blocked'),
                               style: TextStyle(fontSize: 12, color: AppColors.sub)),
                         ],
                       ),
@@ -1119,7 +1323,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       BoxShadow(color: AppColors.accent.withAlpha(90), blurRadius: 30, offset: Offset(0, 10)),
                     ],
                   ),
-                  child: Text('SAVE SCHEDULE',
+                  child: Text(tr('SAVE SCHEDULE'),
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -1188,7 +1392,7 @@ class _DialPainter extends CustomPainter {
       canvas.drawCircle(p + Offset(0, 2), 10, Paint()..color = Color(0x55000000));
       canvas.drawCircle(p, 9, Paint()..color = Colors.white);
     }
-    const marks = {0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM'};
+    final marks = {0: '12 ${tr('AM')}', 6: '6 ${tr('AM')}', 12: '12 ${tr('PM')}', 18: '6 ${tr('PM')}'};
     marks.forEach((h, text) {
       final a = h / 24 * 2 * math.pi - math.pi / 2;
       final p = c + Offset(142 * math.cos(a), 142 * math.sin(a));
@@ -1230,52 +1434,54 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
         children: [
-          PageHeader('Settings', 'Customize how blocking works'),
+          PageHeader(tr('Settings'), tr('Customize how blocking works')),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 100),
+              padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, 100),
               children: [
                 _status(context),
-                _label('Appearance'),
+                _label(tr('Appearance')),
                 _themeSwitch(),
                 SizedBox(height: 10),
                 _accentRow(),
                 SizedBox(height: 18),
-                _label('Protection'),
+                _label(tr('Language')),
+                _langSwitch(),
+                _label(tr('Protection')),
                 _group([
-                  _tile(Icons.event_outlined, 'Schedule', 'Block automatically by time of day',
-                      trailing: st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : 'Off',
+                  _tile(Icons.event_outlined, tr('Schedule'), tr('Block automatically by time of day'),
+                      trailing: st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : tr('Off'),
                       onTap: onOpenSchedule),
-                  _tile(Icons.timer_outlined, 'Timed block', 'Block for a fixed period',
-                      trailing: st.timedActive ? 'Until ${_clock(st.timedUntil)}' : 'Off',
+                  _tile(Icons.timer_outlined, tr('Timed block'), tr('Block for a fixed period'),
+                      trailing: st.timedActive ? tr('Until {time}', {'time': _clock(st.timedUntil)}) : tr('Off'),
                       onTap: onTimer),
                 ]),
-                _label('Behavior'),
+                _label(tr('Behavior')),
                 _group([
-                  _tile(Icons.power_settings_new, 'Start on boot', 'Resume protection after restart',
+                  _tile(Icons.power_settings_new, tr('Start on boot'), tr('Resume protection after restart'),
                       sw: st.boot, on: (v) => onPref('boot', v)),
-                  _tile(Icons.apps, 'Show system apps', 'Include system apps in the list',
+                  _tile(Icons.apps, tr('Show system apps'), tr('Include system apps in the list'),
                       sw: st.showSystem, on: (v) => onPref('showSystem', v)),
                 ]),
-                _label('Block list'),
+                _label(tr('Block list')),
                 _group([
-                  _tile(Icons.copy_outlined, 'Copy block list', 'Copy the blocked apps to the clipboard',
+                  _tile(Icons.copy_outlined, tr('Copy block list'), tr('Copy the blocked apps to the clipboard'),
                       onTap: onCopy),
-                  _tile(Icons.content_paste_outlined, 'Paste block list',
-                      'Block the apps found in the clipboard',
+                  _tile(Icons.content_paste_outlined, tr('Paste block list'),
+                      tr('Block the apps found in the clipboard'),
                       onTap: onPaste),
-                  _tile(Icons.delete_sweep_outlined, 'Unblock all apps', 'Give every app its internet back',
+                  _tile(Icons.delete_sweep_outlined, tr('Unblock all apps'), tr('Give every app its internet back'),
                       onTap: () => _confirmClear(context)),
                 ]),
-                _label('General'),
+                _label(tr('General')),
                 _group([
-                  _tile(Icons.vpn_key_outlined, 'VPN permission', 'Needed to block apps',
-                      trailing: st.vpnGranted ? 'Granted' : 'Request', onTap: () => onVpn()),
-                  _tile(Icons.battery_saver_outlined, 'Run in background', 'Allow unrestricted battery use',
-                      trailing: 'Open', onTap: () => BlockService.openBatterySettings()),
-                  _tile(Icons.help_outline, 'How it works', 'What this app does and does not do',
+                  _tile(Icons.vpn_key_outlined, tr('VPN permission'), tr('Needed to block apps'),
+                      trailing: st.vpnGranted ? tr('Granted') : tr('Request'), onTap: () => onVpn()),
+                  _tile(Icons.battery_saver_outlined, tr('Run in background'), tr('Allow unrestricted battery use'),
+                      trailing: tr('Open'), onTap: () => BlockService.openBatterySettings()),
+                  _tile(Icons.help_outline, tr('How it works'), tr('What this app does and does not do'),
                       onTap: () => _howItWorks(context)),
-                  _tile(Icons.info_outline, 'About', 'Version 1.0', onTap: () => _about(context)),
+                  _tile(Icons.info_outline, tr('About'), tr('Version 1.0'), onTap: () => _about(context)),
                 ]),
               ],
             ),
@@ -1287,8 +1493,8 @@ class SettingsPage extends StatelessWidget {
 
   Widget _status(BuildContext context) {
     final ok = st.vpnGranted;
-    final title = !ok ? 'Permission needed' : (st.running ? 'Protection active' : 'Protection idle');
-    final sub = !ok ? 'Allow the VPN so blocking can work' : '${st.blocked.length} apps in the block list';
+    final title = !ok ? tr('Permission needed') : (st.running ? tr('Protection active') : tr('Protection idle'));
+    final sub = !ok ? tr('Allow the VPN so blocking can work') : tr('{n} apps in the block list', {'n': st.blocked.length});
     return Container(
       margin: EdgeInsets.only(bottom: 20),
       padding: EdgeInsets.all(16),
@@ -1339,15 +1545,15 @@ class SettingsPage extends StatelessWidget {
                   textStyle: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 onPressed: () => onVpn(),
-                child: Text('Grant VPN permission'),
+                child: Text(tr('Grant VPN permission')),
               ),
             )
           else
             Row(
               children: [
-                _pill('Diagnostics', Icons.fact_check_outlined, () => _diagnostics(context)),
+                _pill(tr('Diagnostics'), Icons.fact_check_outlined, () => _diagnostics(context)),
                 SizedBox(width: 8),
-                _pill('Battery', Icons.battery_saver_outlined, () => BlockService.openBatterySettings()),
+                _pill(tr('Battery'), Icons.battery_saver_outlined, () => BlockService.openBatterySettings()),
               ],
             ),
         ],
@@ -1376,7 +1582,7 @@ class SettingsPage extends StatelessWidget {
   String _time(int m) {
     final h = m ~/ 60;
     final h12 = h % 12 == 0 ? 12 : h % 12;
-    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+    return '$h12:${(m % 60).toString().padLeft(2, '0')} ${h < 12 ? tr('AM') : tr('PM')}';
   }
 
   String _clock(int millis) {
@@ -1387,30 +1593,27 @@ class SettingsPage extends StatelessWidget {
   void _howItWorks(BuildContext context) => showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('How it works'),
+          title: Text(tr('How it works')),
           content: Text(
-              'The app creates a local VPN that carries only the apps you block and drops '
-              'their traffic, so they have no internet. All other apps work normally. '
-              'Nothing is sent anywhere and nothing is collected.\n\n'
-              'Android allows only one VPN at a time, so starting another VPN app pauses this one.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
+              tr('The app creates a local VPN that carries only the apps you block and drops their traffic, so they have no internet. All other apps work normally. Nothing is sent anywhere and nothing is collected.\n\nAndroid allows only one VPN at a time, so starting another VPN app pauses this one.')),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('OK')))],
         ),
       );
 
   void _diagnostics(BuildContext context) {
     final rows = <List<String>>[
-      ['VPN permission', st.vpnGranted ? 'Granted' : 'Missing'],
-      ['Blocking service', st.running ? 'Running' : 'Stopped'],
-      ['Apps in block list', '${st.blocked.length}'],
-      ['Main switch', st.master ? 'On' : 'Off'],
-      ['Timed block', st.timedActive ? 'Active' : 'None'],
-      ['Schedule', st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : 'Off'],
-      ['Last error', st.error.isEmpty ? 'None' : st.error],
+      [tr('VPN permission'), st.vpnGranted ? tr('Granted') : tr('Missing')],
+      [tr('Blocking service'), st.running ? tr('Running') : tr('Stopped')],
+      [tr('Apps in block list'), '${st.blocked.length}'],
+      [tr('Main switch'), st.master ? tr('On') : tr('Off')],
+      [tr('Timed block'), st.timedActive ? tr('Active') : tr('None')],
+      [tr('Schedule'), st.schedOn ? '${_time(st.start)} \u2013 ${_time(st.end)}' : tr('Off')],
+      [tr('Last error'), st.error.isEmpty ? tr('None') : st.error],
     ];
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Diagnostics'),
+        title: Text(tr('Diagnostics')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1430,7 +1633,7 @@ class SettingsPage extends StatelessWidget {
               ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Close'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Close')))],
       ),
     );
   }
@@ -1476,16 +1679,16 @@ class SettingsPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          opt('System', Icons.brightness_auto_outlined, 0),
-          opt('Dark', Icons.dark_mode_outlined, 1),
-          opt('Light', Icons.light_mode_outlined, 2),
+          opt(tr('System'), Icons.brightness_auto_outlined, 0),
+          opt(tr('Dark'), Icons.dark_mode_outlined, 1),
+          opt(tr('Light'), Icons.light_mode_outlined, 2),
         ],
       ),
     );
   }
 
   Widget _accentRow() => Container(
-        padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
+        padding: EdgeInsetsDirectional.fromSTEB(16, 14, 16, 16),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(26),
@@ -1494,7 +1697,7 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Accent color', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            Text(tr('Accent color'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1523,7 +1726,7 @@ class SettingsPage extends StatelessWidget {
                               : null,
                         ),
                         SizedBox(height: 6),
-                        Text(AppColors.accentNames[i], style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        Text(tr(AppColors.accentNames[i]), style: TextStyle(fontSize: 11, color: AppColors.muted)),
                       ],
                     ),
                   ),
@@ -1539,11 +1742,11 @@ class SettingsPage extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Unblock all apps?'),
-        content: Text('Every app will get its internet access back.'),
+        title: Text(tr('Unblock all apps?')),
+        content: Text(tr('Every app will get its internet access back.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Unblock all')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Unblock all'))),
         ],
       ),
     );
@@ -1552,16 +1755,52 @@ class SettingsPage extends StatelessWidget {
 
   void _about(BuildContext context) => showAboutDialog(
         context: context,
-        applicationName: 'Block Internet Access',
+        applicationName: tr('Block Internet Access'),
         applicationVersion: '1.0',
         children: [
-          Text('Blocks internet access for the apps you choose using a local VPN. '
-              'No traffic leaves your device and nothing is collected.'),
+          Text(tr('Blocks internet access for the apps you choose using a local VPN. No traffic leaves your device and nothing is collected.')),
         ],
       );
 
+  Widget _langSwitch() => Container(
+        padding: EdgeInsets.all(6),
+        margin: EdgeInsets.only(bottom: 18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            for (final o in [['en', 'English'], ['ar', '\u0627\u0644\u0639\u0631\u0628\u064a\u0629']])
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    applyLang(o[0]);
+                    BlockService.setPref('lang', o[0]);
+                  },
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 200),
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: L.code == o[0] ? AppColors.accent : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(o[1],
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: L.code == o[0] ? AppColors.onAccent : AppColors.muted)),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+
   Widget _label(String t) => Padding(
-        padding: EdgeInsets.only(left: 4, bottom: 6),
+        padding: EdgeInsetsDirectional.only(start: 4, bottom: 6),
         child: Text(t.toUpperCase(),
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.accent)),
@@ -1717,13 +1956,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   child: Column(
                     children: [
                       Text(
-                        'Block Internet\nAccess',
+                        tr('Block Internet\nAccess'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 28, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: -0.4),
                       ),
                       SizedBox(height: 8),
-                      Text('Take control of every app\u2019s connection',
+                      Text(tr('Take control of every app\u2019s connection'),
                           style: TextStyle(fontSize: 14, color: AppColors.muted)),
                     ],
                   ),
@@ -1745,10 +1984,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
                 SizedBox(height: 12),
-                Text('Securing your connections\u2026',
+                Text(tr('Securing your connections\u2026'),
                     style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 SizedBox(height: 18),
-                Text('Version 1.0', style: TextStyle(fontSize: 11, color: Color(0xFF5F6F6D))),
+                Text(tr('Version 1.0'), style: TextStyle(fontSize: 11, color: Color(0xFF5F6F6D))),
                 SizedBox(height: 40),
               ],
             ),
@@ -1791,7 +2030,7 @@ class PermissionPage extends StatelessWidget {
           ),
           child: SafeArea(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(28, 56, 28, 24),
+              padding: EdgeInsetsDirectional.fromSTEB(28, 56, 28, 24),
               child: Column(
                 children: [
                   Container(
@@ -1819,20 +2058,19 @@ class PermissionPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 22),
-                  Text('Allow VPN connection',
+                  Text(tr('Allow VPN connection'),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.4)),
                   SizedBox(height: 8),
                   Text(
-                    'Block Internet uses a local VPN to cut internet for the apps you choose. '
-                    'No data leaves your device.',
+                    tr('Block Internet uses a local VPN to cut internet for the apps you choose. No data leaves your device.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14.5, height: 1.6, color: AppColors.muted),
                   ),
                   SizedBox(height: 22),
-                  _point(Icons.check, 'Only the apps you pick lose internet'),
-                  _point(Icons.lock_outline, 'Everything stays on your phone'),
-                  _point(Icons.check, 'You can turn it off anytime'),
+                  _point(Icons.check, tr('Only the apps you pick lose internet')),
+                  _point(Icons.lock_outline, tr('Everything stays on your phone')),
+                  _point(Icons.check, tr('You can turn it off anytime')),
                   SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
@@ -1845,15 +2083,15 @@ class PermissionPage extends StatelessWidget {
                         textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.6),
                       ),
                       onPressed: () => Navigator.pop(context, true),
-                      child: Text('CONTINUE'),
+                      child: Text(tr('CONTINUE')),
                     ),
                   ),
                   SizedBox(height: 6),
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: Text('Not now', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                    child: Text(tr('Not now'), style: TextStyle(color: AppColors.muted, fontSize: 14)),
                   ),
-                  Text('Android will ask you to confirm',
+                  Text(tr('Android will ask you to confirm'),
                       style: TextStyle(fontSize: 11.5, color: AppColors.sub)),
                 ],
               ),
@@ -1977,12 +2215,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         MaterialPageRoute(builder: (_) => PermissionPage(), fullscreenDialog: true),
       );
       if (go != true) {
-        say('VPN permission is required to block apps');
+        say(tr('VPN permission is required to block apps'));
         return false;
       }
     }
     final ok = await BlockService.prepareVpn();
-    if (!ok) say('VPN permission is required to block apps');
+    if (!ok) say(tr('VPN permission is required to block apps'));
     await reloadState();
     return ok;
   }
@@ -1994,7 +2232,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final wanted = st.blocked.isNotEmpty && (st.master || st.timedActive);
     if (wanted && !st.running) {
       final why = st.error.isNotEmpty ? st.error : BlockService.lastError;
-      say('Blocking did not start${why.isEmpty ? '' : ': $why'}');
+      say(tr('Blocking did not start') + (why.isEmpty ? '' : ': $why'));
     }
   }
 
@@ -2043,21 +2281,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   Future<void> startTimed(int minutes) async {
     if (!apps.any((a) => a.blocked)) {
-      say('Select the apps to block first');
+      say(tr('Select the apps to block first'));
       return;
     }
     if (!await ensureVpn()) return;
     await BlockService.timedBlock(minutes);
     await verifyRunning();
-    say('Selected apps are blocked for ${o0(minutes)}');
+    say(tr('Selected apps are blocked for {d}', {'d': o0(minutes)}));
   }
 
   Future<void> timer() async {
     final opts = <List<Object>>[
-      ['15 minutes', 15],
-      ['1 hour', 60],
-      ['4 hours', 240],
-      ['Until tomorrow morning', _minsToMorning()],
+      [tr('15 minutes'), 15],
+      [tr('1 hour'), 60],
+      [tr('4 hours'), 240],
+      [tr('Until tomorrow morning'), _minsToMorning()],
     ];
     final count = apps.where((a) => a.blocked).length;
     final pick = await showModalBottomSheet<int>(
@@ -2070,7 +2308,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         return StatefulBuilder(
           builder: (ctx, setS) => SafeArea(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
+              padding: EdgeInsetsDirectional.fromSTEB(20, 12, 20, 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2084,10 +2322,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                     ),
                   ),
                   SizedBox(height: 18),
-                  Text('Block selected apps for\u2026',
+                  Text(tr('Block selected apps for\u2026'),
                       style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                   SizedBox(height: 4),
-                  Text('$count apps will lose internet until the timer ends.',
+                  Text(tr('{n} apps will lose internet until the timer ends.', {'n': count}),
                       style: TextStyle(fontSize: 13, color: AppColors.muted)),
                   SizedBox(height: 16),
                   for (var i = 0; i < opts.length; i++)
@@ -2130,20 +2368,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                         textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.6),
                       ),
                       onPressed: () => Navigator.pop(ctx, opts[sel][1] as int),
-                      child: Text('START TIMER'),
+                      child: Text(tr('START TIMER')),
                     ),
                   ),
                   Center(
                     child: TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                      child: Text(tr('Cancel'), style: TextStyle(color: AppColors.muted)),
                     ),
                   ),
                   if (st.timedActive)
                     Center(
                       child: TextButton(
                         onPressed: () => Navigator.pop(ctx, -1),
-                        child: Text('Cancel timed block'),
+                        child: Text(tr('Cancel timed block')),
                       ),
                     ),
                 ],
@@ -2157,24 +2395,26 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (pick < 0) {
       await BlockService.timedBlock(0);
       await reloadState();
-      say('Timed block cancelled');
+      say(tr('Timed block cancelled'));
       return;
     }
     await startTimed(pick);
   }
 
-  String o0(int m) => m < 60 ? '$m minutes' : '${(m / 60).toStringAsFixed(m % 60 == 0 ? 0 : 1)} hours';
+  String o0(int m) => m < 60
+      ? tr('{m} minutes', {'m': m})
+      : tr('{h} hours', {'h': (m / 60).toStringAsFixed(m % 60 == 0 ? 0 : 1)});
 
   Future<bool> schedule(bool on, int s, int e, int d) async {
     if (on && !await ensureVpn()) return false;
     await BlockService.setSchedule(on, s, e, d);
     await reloadState();
     if (!on) {
-      say('Schedule turned off');
+      say(tr('Schedule turned off'));
     } else if (!apps.any((a) => a.blocked)) {
-      say('Schedule saved. Select the apps to block');
+      say(tr('Schedule saved. Select the apps to block'));
     } else {
-      say('Schedule saved');
+      say(tr('Schedule saved'));
     }
     return true;
   }
@@ -2182,11 +2422,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Future<void> copyList() async {
     final names = apps.where((a) => a.blocked).map((a) => a.package).toList();
     if (names.isEmpty) {
-      say('The block list is empty');
+      say(tr('The block list is empty'));
       return;
     }
     await Clipboard.setData(ClipboardData(text: names.join('\n')));
-    say('Copied ${names.length} apps to the clipboard');
+    say(tr('Copied {n} apps to the clipboard', {'n': names.length}));
   }
 
   Future<void> pasteList() async {
@@ -2194,7 +2434,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final wanted = (data?.text ?? '').split(RegExp(r'[\s,;]+')).where((e) => e.contains('.')).toSet();
     final known = apps.where((a) => wanted.contains(a.package)).toList();
     if (known.isEmpty) {
-      say('No matching apps found in the clipboard');
+      say(tr('No matching apps found in the clipboard'));
       return;
     }
     if (!await ensureVpn()) return;
@@ -2204,7 +2444,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     refresh();
     await BlockService.setBlocked(apps.where((x) => x.blocked).map((x) => x.package));
     await verifyRunning();
-    say('Blocked ${known.length} apps');
+    say(tr('Blocked {n} apps', {'n': known.length}));
   }
 
   Future<void> clearList() async {
@@ -2214,7 +2454,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     refresh();
     await BlockService.setBlocked(<String>[]);
     await reloadState();
-    say('Block list cleared');
+    say(tr('Block list cleared'));
   }
 
   Future<void> setPref(String key, bool v) async {
@@ -2289,7 +2529,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                       children: [
                         CircularProgressIndicator(color: AppColors.accent),
                         SizedBox(height: 16),
-                        Text('Loading apps\u2026', style: TextStyle(color: AppColors.muted)),
+                        Text(tr('Loading apps\u2026'), style: TextStyle(color: AppColors.muted)),
                       ],
                     ),
                   )
@@ -2300,14 +2540,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('Could not load the apps list',
+                              Text(tr('Could not load the apps list'),
                                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                               SizedBox(height: 8),
                               Text(loadError!,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 12, color: AppColors.muted)),
                               SizedBox(height: 16),
-                              FilledButton(onPressed: load, child: Text('Retry')),
+                              FilledButton(onPressed: load, child: Text(tr('Retry'))),
                             ],
                           ),
                         ),
@@ -2318,7 +2558,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: EdgeInsets.fromLTRB(14, 0, 14, 12),
+          margin: EdgeInsetsDirectional.fromSTEB(14, 0, 14, 12),
           decoration: BoxDecoration(
             color: AppColors.navBg,
             borderRadius: BorderRadius.circular(35),
@@ -2332,10 +2572,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             selectedIndex: tab,
             onDestinationSelected: (i) => setState(() => tab = i),
             destinations: [
-              NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.apps_rounded), label: 'Apps'),
-              NavigationDestination(icon: Icon(Icons.timer_outlined), label: 'Schedule'),
-              NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+              NavigationDestination(icon: Icon(Icons.home_rounded), label: tr('Home')),
+              NavigationDestination(icon: Icon(Icons.apps_rounded), label: tr('Apps')),
+              NavigationDestination(icon: Icon(Icons.timer_outlined), label: tr('Schedule')),
+              NavigationDestination(icon: Icon(Icons.settings_outlined), label: tr('Settings')),
             ],
           ),
         ),
@@ -2349,6 +2589,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final st = await BlockService.getState();
   applyTheme(mode: st.themeMode, accent: st.accent);
+  applyLang(st.lang);
   runApp(const BlockerApp());
 }
 
@@ -2382,8 +2623,12 @@ class _BlockerAppState extends State<BlockerApp> with WidgetsBindingObserver {
         valueListenable: themeNotifier,
         builder: (_, __, ___) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Block Internet Access',
+          title: tr('Block Internet Access'),
           theme: buildTheme(AppColors.dark),
+          builder: (context, child) => Directionality(
+            textDirection: L.rtl ? TextDirection.rtl : TextDirection.ltr,
+            child: child!,
+          ),
           home: SplashScreen(),
         ),
       );
